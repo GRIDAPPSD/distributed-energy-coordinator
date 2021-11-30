@@ -87,6 +87,190 @@ class SPARQLManager:
             list_of_dicts.append({k:v['value'] for (k, v) in obj.items()})
         output = pd.DataFrame(list_of_dicts)
         return output
+    
+    def PerLengthPhaseImpedance_line_names(self):
+        LINES_QUERY = """
+        PREFIX r:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX c:  <http://iec.ch/TC57/CIM100#>
+        SELECT ?name ?bus1 ?bus2 ?id (group_concat(distinct ?phs;separator="") as ?phases) WHERE {
+        SELECT ?name ?bus1 ?bus2 ?phs ?id WHERE {
+        VALUES ?fdrid {"%s"}  # 13 bus
+        ?fdr c:IdentifiedObject.mRID ?fdrid.
+        ?s r:type c:ACLineSegment.
+        ?s c:Equipment.EquipmentContainer ?fdr.
+        ?s c:IdentifiedObject.name ?name.
+        ?s c:IdentifiedObject.mRID ?id.
+        ?t1 c:Terminal.ConductingEquipment ?s.
+        ?t1 c:ACDCTerminal.sequenceNumber "1".
+        ?t1 c:Terminal.ConnectivityNode ?cn1. 
+        ?cn1 c:IdentifiedObject.name ?bus1.
+        ?t2 c:Terminal.ConductingEquipment ?s.
+        ?t2 c:ACDCTerminal.sequenceNumber "2".
+        ?t2 c:Terminal.ConnectivityNode ?cn2. 
+        ?cn2 c:IdentifiedObject.name ?bus2
+            OPTIONAL {?acp c:ACLineSegmentPhase.ACLineSegment ?s.
+            ?acp c:ACLineSegmentPhase.phase ?phsraw.
+            bind(strafter(str(?phsraw),"SinglePhaseKind.") as ?phs) }
+        } ORDER BY ?name ?phs
+        }
+        GROUP BY ?name ?bus1 ?bus2 ?id
+        ORDER BY ?name
+        """% self.feeder_mrid
+
+        results = self.gad.query_data(LINES_QUERY)
+        bindings = results['data']['results']['bindings']
+        return bindings
+    
+    def PowerTransformerEnd_xfmr_names(self):
+        XFMRS_QUERY = """
+        PREFIX r:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX c:  <http://iec.ch/TC57/CIM100#>
+        SELECT ?xfmr_name  ?end_number ?bus 
+        WHERE {
+        VALUES ?fdrid {"%s"}
+         ?p c:Equipment.EquipmentContainer ?fdr.
+         ?fdr c:IdentifiedObject.mRID ?fdrid.
+         ?p r:type c:PowerTransformer.
+         ?p c:IdentifiedObject.name ?xfmr_name.
+         ?p c:PowerTransformer.vectorGroup ?vector_group.
+         ?end c:PowerTransformerEnd.PowerTransformer ?p.
+         ?end c:TransformerEnd.endNumber ?end_number.
+         ?end c:PowerTransformerEnd.ratedS ?ratedS.
+         ?end c:PowerTransformerEnd.ratedU ?ratedU.
+         ?end c:PowerTransformerEnd.r ?r_ohm.
+         ?end c:PowerTransformerEnd.phaseAngleClock ?angle.
+         ?end c:PowerTransformerEnd.connectionKind ?connraw.
+          bind(strafter(str(?connraw),"WindingConnection.") as ?connection)
+         ?end c:TransformerEnd.grounded ?grounded.
+         OPTIONAL {?end c:TransformerEnd.rground ?r_ground.}
+         OPTIONAL {?end c:TransformerEnd.xground ?x_ground.}
+         ?end c:TransformerEnd.Terminal ?trm.
+         ?trm c:Terminal.ConnectivityNode ?cn.
+         ?cn c:IdentifiedObject.name ?bus.
+         ?end c:TransformerEnd.BaseVoltage ?bv.
+         ?bv c:BaseVoltage.nominalVoltage ?base_voltage.
+        }
+        ORDER BY ?xfmr_name ?end_number
+        """% self.feeder_mrid
+
+        results = self.gad.query_data(XFMRS_QUERY)
+        bindings = results['data']['results']['bindings']
+        return bindings
+
+    def TransformerTank_xfmr_names(self):
+        XFMRS_QUERY = """
+        PREFIX r:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX c:  <http://iec.ch/TC57/CIM100#>
+        SELECT ?xfmr_name ?end_number ?bus
+        WHERE {
+        VALUES ?fdrid {"%s"}
+         ?p c:Equipment.EquipmentContainer ?fdr.
+         ?fdr c:IdentifiedObject.mRID ?fdrid.
+         ?p r:type c:PowerTransformer.
+         ?p c:IdentifiedObject.name ?pname.
+         ?p c:PowerTransformer.vectorGroup ?vector_group.
+         ?t c:TransformerTank.PowerTransformer ?p.
+         ?t c:IdentifiedObject.name ?xfmr_name.
+         ?asset c:Asset.PowerSystemResources ?t.
+         ?asset c:Asset.AssetInfo ?inf.
+         ?inf c:IdentifiedObject.name ?xfmr_code.
+         ?end c:TransformerTankEnd.TransformerTank ?t.
+         ?end c:TransformerTankEnd.phases ?phsraw.
+          bind(strafter(str(?phsraw),"PhaseCode.") as ?phase)
+         ?end c:TransformerEnd.endNumber ?end_number.
+         ?end c:TransformerEnd.grounded ?grounded.
+         OPTIONAL {?end c:TransformerEnd.rground ?rground.}
+         OPTIONAL {?end c:TransformerEnd.xground ?xground.}
+         ?end c:TransformerEnd.Terminal ?trm.
+         ?trm c:Terminal.ConnectivityNode ?cn.
+         ?cn c:IdentifiedObject.name ?bus.
+         ?end c:TransformerEnd.BaseVoltage ?bv.
+         ?bv c:BaseVoltage.nominalVoltage ?baseV.
+        }
+        ORDER BY ?xfmr_name ?end_number
+        """% self.feeder_mrid
+
+        results = self.gad.query_data(XFMRS_QUERY)
+        bindings = results['data']['results']['bindings']
+        return bindings
+
+    def SwitchingEquipment_switch_names(self):
+        SWITCHES_QUERY = """
+        PREFIX r:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX c:  <http://iec.ch/TC57/CIM100#>
+        SELECT ?cimtype ?name ?isopen ?bus1 ?bus2 ?id (group_concat(distinct ?phs;separator="") as ?phases) WHERE {
+        SELECT ?cimtype ?name ?isopen ?bus1 ?bus2 ?phs ?id WHERE {
+        VALUES ?fdrid {"%s"}  # 13 bus
+        VALUES ?cimraw {c:LoadBreakSwitch c:Recloser c:Breaker}
+        ?fdr c:IdentifiedObject.mRID ?fdrid.
+        ?s r:type ?cimraw.
+        bind(strafter(str(?cimraw),"#") as ?cimtype)
+        ?s c:Equipment.EquipmentContainer ?fdr.
+        ?s c:IdentifiedObject.name ?name.
+        ?s c:IdentifiedObject.mRID ?id.
+        ?s c:Switch.normalOpen ?isopen.
+        ?t1 c:Terminal.ConductingEquipment ?s.
+        ?t1 c:ACDCTerminal.sequenceNumber "1".
+        ?t1 c:Terminal.ConnectivityNode ?cn1. 
+        ?cn1 c:IdentifiedObject.name ?bus1.
+        ?t2 c:Terminal.ConductingEquipment ?s.
+        ?t2 c:ACDCTerminal.sequenceNumber "2".
+        ?t2 c:Terminal.ConnectivityNode ?cn2. 
+        ?cn2 c:IdentifiedObject.name ?bus2
+            OPTIONAL {?swp c:SwitchPhase.Switch ?s.
+            ?swp c:SwitchPhase.phaseSide1 ?phsraw.
+            bind(strafter(str(?phsraw),"SinglePhaseKind.") as ?phs) }
+        } ORDER BY ?name ?phs
+        }
+        GROUP BY ?cimtype ?name ?isopen ?bus1 ?bus2 ?id
+        ORDER BY ?cimtype ?name
+        """% self.feeder_mrid
+
+        results = self.gad.query_data(SWITCHES_QUERY)
+        bindings = results['data']['results']['bindings']
+        return bindings
+
+    def query_energyconsumer_lf(self):
+        """Get information on loads in the feeder."""
+        # Perform the query.
+        LOAD_QUERY = """
+        PREFIX r:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX c:  <http://iec.ch/TC57/CIM100#>
+        SELECT ?name ?bus ?p ?q (group_concat(distinct ?phs;separator="\\n") as ?phases) WHERE {
+        ?s r:type c:EnergyConsumer.
+        VALUES ?fdrid {"%s"}
+        ?s c:Equipment.EquipmentContainer ?fdr.
+        ?fdr c:IdentifiedObject.mRID ?fdrid.
+        ?s c:IdentifiedObject.name ?name.
+        ?s c:ConductingEquipment.BaseVoltage ?bv.
+        ?bv c:BaseVoltage.nominalVoltage ?basev.
+        ?s c:EnergyConsumer.customerCount ?cnt.
+        ?s c:EnergyConsumer.p ?p.
+        ?s c:EnergyConsumer.q ?q.
+        ?s c:EnergyConsumer.phaseConnection ?connraw.
+        bind(strafter(str(?connraw),"PhaseShuntConnectionKind.") as ?conn)
+        ?s c:EnergyConsumer.LoadResponse ?lr.
+        ?lr c:LoadResponseCharacteristic.pConstantImpedance ?pz.
+        ?lr c:LoadResponseCharacteristic.qConstantImpedance ?qz.
+        ?lr c:LoadResponseCharacteristic.pConstantCurrent ?pi.
+        ?lr c:LoadResponseCharacteristic.qConstantCurrent ?qi.
+        ?lr c:LoadResponseCharacteristic.pConstantPower ?pp.
+        ?lr c:LoadResponseCharacteristic.qConstantPower ?qp.
+        ?lr c:LoadResponseCharacteristic.pVoltageExponent ?pe.
+        ?lr c:LoadResponseCharacteristic.qVoltageExponent ?qe.
+        OPTIONAL {?ecp c:EnergyConsumerPhase.EnergyConsumer ?s.
+        ?ecp c:EnergyConsumerPhase.phase ?phsraw.
+        bind(strafter(str(?phsraw),"SinglePhaseKind.") as ?phs) }
+        ?t c:Terminal.ConductingEquipment ?s.
+        ?t c:Terminal.ConnectivityNode ?cn.
+        ?cn c:IdentifiedObject.name ?bus
+        }
+        GROUP BY ?name ?bus ?p ?q 
+        ORDER by ?name
+        """% self.feeder_mrid
+        results = self.gad.query_data(LOAD_QUERY)
+        bindings = results['data']['results']['bindings']
+        return bindings
 
 
     def ybus_export(self):
