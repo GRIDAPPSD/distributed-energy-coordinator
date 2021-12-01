@@ -11,6 +11,48 @@ from gridappsd import GridAPPSD
 from sparql import SPARQLManager
 import networkx as nx
 import numpy as np
+import json
+
+
+def area_info(G, edge, branch_sw_data, bus_info, sourcebus):
+    # Find area between the switches
+    for e in edge:
+        G.remove_edge(e[0], e[1])
+
+    # Find area specific information
+    T = list(nx.bfs_tree(G, source = sourcebus).edges())
+    print("\n Number of Buses:", G.number_of_nodes(), "\n", "Number of Edges:", G.number_of_edges())
+    print('\n The number of edges in a Spanning tree is:', len(T))
+    print(list(nx.connected_components(G)))
+    sp_graph = list(nx.connected_components(G))
+    for k in sp_graph:
+        if sourcebus not in k:
+            break
+    
+    bus_info_area1 = {}
+    idx = 0
+    for key, val_bus in bus_info.items():
+        if key in k:
+            bus_info_area1[key] = {}
+            bus_info_area1[key]['idx'] = idx
+            bus_info_area1[key]['phases'] = bus_info[key]['phases']
+            bus_info_area1[key]['nodes'] = bus_info[key]['nodes']
+            bus_info_area1[key]['injection'] = bus_info[key]['injection']
+            idx += 1
+    idx = 0
+    branch_sw_data_area1 = {}
+    for key, val_bus in branch_sw_data.items():
+        if val_bus['fr_bus'] in bus_info_area1 and val_bus['to_bus'] in bus_info_area1:
+            branch_sw_data_area1[key] = {}
+            branch_sw_data_area1[key]['idx'] = idx
+            branch_sw_data_area1[key]['type']= branch_sw_data[key]['type']
+            branch_sw_data_area1[key] ['from'] = bus_info_area1[branch_sw_data[key]['fr_bus']]['idx']
+            branch_sw_data_area1[key] ['to'] =  bus_info_area1[branch_sw_data[key]['to_bus']]['idx']
+            branch_sw_data_area1[key]['phases'] = branch_sw_data[key]['phases']
+            branch_sw_data_area1[key]['zprim'] = branch_sw_data[key]['zprim']
+            idx += 1
+    
+    return branch_sw_data_area1, bus_info_area1
 
 
 def _main():
@@ -113,6 +155,8 @@ def _main():
         branch_sw_data[line_name]['phases'] = ph
         branch_sw_data[line_name] ['from'] = bus_info[obj['bus1']['value'].upper()]['idx']
         branch_sw_data[line_name] ['to'] = bus_info[obj['bus2']['value'].upper()]['idx']
+        branch_sw_data[line_name] ['fr_bus'] = obj['bus1']['value'].upper()
+        branch_sw_data[line_name] ['to_bus'] = obj['bus2']['value'].upper()
         fr_node = []
         t_node = []
         for p in ph:
@@ -141,12 +185,14 @@ def _main():
         if idx % 2 == 0:
             xmfr_name = obj['xfmr_name']['value']
             branch_sw_data[xmfr_name] = {}
-            branch_sw_data[xmfr_name]['idx'] = idx_line + idx_xmfr + 1
+            branch_sw_data[xmfr_name]['idx'] = idx_line + idx_xmfr + 0
             branch_sw_data[xmfr_name]['type']= 'XFMR'
             ph = [ord(letter) - 64 for letter in  'ABC']
             branch_sw_data[xmfr_name]['phases'] = ph
             branch_sw_data[xmfr_name] ['from'] = bus_info[obj['bus']['value'].upper()]['idx']
             branch_sw_data[xmfr_name] ['to'] = bus_info[xmfrs[idx+1]['bus']['value'].upper()]['idx']
+            branch_sw_data[xmfr_name] ['fr_bus'] = obj['bus']['value'].upper()
+            branch_sw_data[xmfr_name] ['to_bus'] = xmfrs[idx+1]['bus']['value'].upper()
             z_prim = np.zeros((3, 3), dtype=complex)
             branch_sw_data[xmfr_name]['zprim'] = z_prim
             idx_xmfr += 1
@@ -159,12 +205,14 @@ def _main():
         if idx % 2 == 0 and obj['xfmr_name']['value'] not in reg_rem:
             xmfr_name = obj['xfmr_name']['value']
             branch_sw_data[xmfr_name] = {}
-            branch_sw_data[xmfr_name]['idx'] = idx_line + idx_xmfr + 1
+            branch_sw_data[xmfr_name]['idx'] = idx_line + idx_xmfr
             branch_sw_data[xmfr_name]['type']= 'REG'
             ph = [ord(letter) - 64 for letter in  'ABC']
             branch_sw_data[xmfr_name]['phases'] = ph
             branch_sw_data[xmfr_name] ['from'] = bus_info[obj['bus']['value'].upper()]['idx']
             branch_sw_data[xmfr_name] ['to'] = bus_info[xmfrs[idx+1]['bus']['value'].upper()]['idx']
+            branch_sw_data[xmfr_name] ['fr_bus'] = obj['bus']['value'].upper()
+            branch_sw_data[xmfr_name] ['to_bus'] = xmfrs[idx+1]['bus']['value'].upper()
             z_prim = np.zeros((3, 3), dtype=complex)
             branch_sw_data[xmfr_name]['zprim'] = z_prim
             idx_xmfr += 1
@@ -180,9 +228,10 @@ def _main():
     idx_swt = 0
     for obj in switches:
         swt_name = obj['name']['value']
+        # Storing only the normally closed switch. We only work with radial network for this app.
         if obj['isopen']['value'] == 'false':
             branch_sw_data[swt_name] = {}
-            branch_sw_data[swt_name]['idx'] = idx_line + idx_xmfr + idx_swt + 2
+            branch_sw_data[swt_name]['idx'] = idx_line + idx_xmfr + idx_swt 
             branch_sw_data[swt_name]['type']= 'SWITCH'
             if obj['phases']['value'] == '':
                 obj['phases']['value'] = 'ABC'
@@ -190,6 +239,8 @@ def _main():
             branch_sw_data[swt_name]['phases'] = ph
             branch_sw_data[swt_name] ['from'] = bus_info[obj['bus1']['value'].upper()]['idx']
             branch_sw_data[swt_name] ['to'] = bus_info[obj['bus2']['value'].upper()]['idx']
+            branch_sw_data[swt_name] ['fr_bus'] = obj['bus1']['value'].upper()
+            branch_sw_data[swt_name] ['to_bus'] = obj['bus2']['value'].upper()
             fr_node = []
             t_node = []
             swt_idxs = []
@@ -218,10 +269,21 @@ def _main():
                             status = sw_pos[obj['isopen']['value']])
             idx_swt += 1
             switch_info.append(message)  
+            G.add_edge(obj['bus1']['value'].upper(), obj['bus2']['value'].upper())
     
+    edge = [['18', '135']]
+    sourcebus = '150'
+    branch_sw_data_area1, bus_info_area1 = area_info(G, edge, branch_sw_data, bus_info, sourcebus)
+            
+    print(branch_sw_data_area1)
+    nbus = len(bus_info_area1)
+    nbranch = len(branch_sw_data_area1)
+    print(nbus, nbranch)
     # Find an area and give the area specific information to agents    
     area1_agent = AreaCoordinator()
-    area1_agent.alpha_area(branch_sw_data,  bus_info)
+    agent_bus = '135'
+    agent_bus_idx = bus_info_area1[agent_bus]['idx']
+    area1_agent.alpha_area(branch_sw_data_area1,  bus_info_area1, agent_bus, agent_bus_idx)
 
 if __name__ == '__main__':
     _main()

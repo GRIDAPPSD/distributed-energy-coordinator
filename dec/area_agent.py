@@ -23,7 +23,7 @@ class AreaCoordinator(object):
         
     
     # Optimization to regulate the voltage
-    def alpha_area(self, branch_sw_data_case,  bus_info):
+    def alpha_area(self, branch_sw_data_case,  bus_info, agent_bus, agent_bus_idx):
 
         # Choose the system to run power flow    
         nbranch = len(branch_sw_data_case)
@@ -38,12 +38,12 @@ class AreaCoordinator(object):
             sourceinj[0] -= b['injection'][0]
             sourceinj[1] -= b['injection'][1]
             sourceinj[2] -= b['injection'][2]
-        bus_info['150']['injection'] = sourceinj
+        bus_info[agent_bus]['injection'] = sourceinj
 
         # Forming the optimization variables
         m = nbus * 6
         # Number of decision variables
-        n = nbus * 3  + nbranch * 6
+        n = nbus * 3  + nbus * 6 + nbranch * 6
         # Number of equality constraints (Injection equations (ABC) at each bus)
         p = nbranch * 10 + nbus * 6
         
@@ -64,7 +64,9 @@ class AreaCoordinator(object):
                 A[counteq, col+k] = -1
             for k in k_to:
                 A[counteq, col+k] = 1
-            b[counteq] = val
+            
+            A[counteq, val] = -1
+            b[counteq] = 0
             return A, b
         
         # Define it for both real and reactive power
@@ -76,7 +78,6 @@ class AreaCoordinator(object):
             ind_frm = 0
             ind_to = 0
             for key, val_br in branch_sw_data_case.items():
-                #print(key, val_br['from'], val_br['to'])
                 if val_bus['idx'] == val_br['from']:
                     k_frm.append(ind_frm)
                 if val_bus['idx'] == val_br['to']:
@@ -85,38 +86,61 @@ class AreaCoordinator(object):
                 ind_frm += 1
             # Real Power balance equations
             # Phase A
-            A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3, val_bus['injection'][0].real)
+            A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*9, val_bus['idx'] + nbus*3 )
             counteq +=1
             # Phase B
-            A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3+nbranch, val_bus['injection'][1].real)
+            A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*9+nbranch, val_bus['idx'] + nbus*4)
             counteq +=1
             # Phase C
-            A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3+nbranch*2, val_bus['injection'][2].real)
+            A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*9+nbranch*2, val_bus['idx'] + nbus*5)
             counteq +=1 
             
+            A[counteq, nbus*3 + val_bus['idx']] = 1
+            b[counteq] = val_bus['injection'][0].real
+            counteq +=1 
+
+            A[counteq, val_bus['idx'] + nbus*4] = 1
+            b[counteq] = val_bus['injection'][1].real
+            counteq +=1 
+
+            A[counteq, val_bus['idx'] + nbus*5] = 1
+            b[counteq] = val_bus['injection'][2].real
+            counteq +=1 
             # Reactive Power balance equations
             # Phase A
-            A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3+nbranch*3, val_bus['injection'][0].imag)
+            A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*9+nbranch*3, val_bus['idx'] + nbus*6)
             counteq +=1
             # Phase B
-            A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3+nbranch*4, val_bus['injection'][1].imag)
+            A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*9+nbranch*4, val_bus['idx'] + nbus*7)
             counteq +=1
             # Phase C
-            A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3+nbranch*5, val_bus['injection'][2].imag)
+            A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*9+nbranch*5, val_bus['idx'] + nbus*8)
             counteq +=1 
+
+            A[counteq, nbus*6 + val_bus['idx']] = 1
+            b[counteq] = val_bus['injection'][0].imag
+            counteq +=1 
+
+            A[counteq, val_bus['idx'] + nbus*7] = 1
+            b[counteq] = val_bus['injection'][1].imag
+            counteq +=1 
+
+            A[counteq, val_bus['idx'] + nbus*8] = 1
+            b[counteq] = val_bus['injection'][2].imag
+            counteq +=1
 
         # Constraint 2: Vj = Vi - Zij Sij* - Sij Zij*
         def voltage_cons (A, b, p, frm, to, counteq, pii, qii, pij, qij, pik, qik):
             A[counteq, frm] = 1
             A[counteq, to] = -1
             # real power drop
-            A[counteq, p+nbus*3] = pii 
-            A[counteq, p+nbus*3+nbranch] = pij 
-            A[counteq, p+nbus*3+nbranch*2] = pik 
+            A[counteq, p+nbus*9] = pii 
+            A[counteq, p+nbus*9+nbranch] = pij 
+            A[counteq, p+nbus*9+nbranch*2] = pik 
             # reactive power drop
-            A[counteq, p+nbus*3+nbranch*3] = qii 
-            A[counteq, p+nbus*3+nbranch*4] = qij 
-            A[counteq, p+nbus*3+nbranch*5] = qik 
+            A[counteq, p+nbus*9+nbranch*3] = qii 
+            A[counteq, p+nbus*9+nbranch*4] = qij 
+            A[counteq, p+nbus*9+nbranch*5] = qik 
             b[counteq] = 0.0
             return A, b
         
@@ -151,13 +175,13 @@ class AreaCoordinator(object):
             idx += 1
         
         # The node after substation transformer is where we start the voltage constraints
-        A[counteq, 11] = 1
+        A[counteq, agent_bus_idx] = 1
         b[counteq] = 2401.77 ** 2
         counteq += 1
-        A[counteq, 11+nbus] = 1
+        A[counteq, agent_bus_idx+nbus] = 1
         b[counteq] = 2401.77 ** 2
         counteq += 1
-        A[counteq, 11+nbus*2] = 1
+        A[counteq, agent_bus_idx+nbus*2] = 1
         b[counteq] = 2401.77 ** 2
         counteq += 1
         
@@ -167,28 +191,28 @@ class AreaCoordinator(object):
         v_idxs = list(set(v_lim))
         #print(v_idxs)
         countineq = 0
-        # for k in range(nbus):
-        #     if k in v_idxs:
-        #         # Upper bound
-        #         G[countineq, k] = 1
-        #         h[countineq] = (1.05 * 2401.77) ** 2
-        #         countineq += 1
-        #         G[countineq, k+nbus] = 1
-        #         h[countineq] = (1.05 * 2401.77) ** 2
-        #         countineq += 1
-        #         G[countineq, k+nbus*2] = 1
-        #         h[countineq] = (1.05 * 2401.77) ** 2
-        #         countineq += 1
+        for k in range(nbus):
+            if k in v_idxs:
+                # Upper bound
+                G[countineq, k] = 1
+                h[countineq] = (1.05 * 2401.77) ** 2
+                countineq += 1
+                G[countineq, k+nbus] = 1
+                h[countineq] = (1.05 * 2401.77) ** 2
+                countineq += 1
+                G[countineq, k+nbus*2] = 1
+                h[countineq] = (1.05 * 2401.77) ** 2
+                countineq += 1
                 # Lower Bound
-                # G[countineq, k] = -1
-                # h[countineq] = -(0.8 * 2401.77) ** 2
-                # countineq += 1
-                # G[countineq, k+nbus] = -1
-                # h[countineq] = -(0.8 * 2401.77) ** 2
-                # countineq += 1
-                # G[countineq, k+nbus*2] = -1
-                # h[countineq] = -(0.8 * 2401.77) ** 2
-                # countineq += 1
+                G[countineq, k] = -1
+                h[countineq] = -(0.8 * 2401.77) ** 2
+                countineq += 1
+                G[countineq, k+nbus] = -1
+                h[countineq] = -(0.8 * 2401.77) ** 2
+                countineq += 1
+                G[countineq, k+nbus*2] = -1
+                h[countineq] = -(0.8 * 2401.77) ** 2
+                countineq += 1
 
 
         # constant_term = v_meas[0]**2 + v_meas[1]**2 + pmeas[0]**2 + pmeas[1]**2
@@ -197,7 +221,7 @@ class AreaCoordinator(object):
         prob = cp.Problem(cp.Minimize((1)*cp.quad_form(x, P) + q.T @ x ),
                         [G @ x <= h,
                         A @ x == b])
-        # prob = cp.Problem(cp.Minimize((1)*cp.quad_form(x, P) + q.T @ x + constant_term),
+        # prob = cp.Problem(cp.Minimize((1)*cp.quad_form(x, P) + q.T @ x),
         #             [A @ x == b])
         prob.solve(verbose=True, max_iter=50000)
 
@@ -215,7 +239,7 @@ class AreaCoordinator(object):
         print('\n Real and Reactive Power flow:')
         i = 0
         flow = []
-        for k in range(nbus*3, nbus*3+nbranch):
+        for k in range(nbus*9, nbus*9+nbranch):
             flow.append([name[i], from_bus[i], to_bus[i], '{:.2f}'.format(x.value[k]/1000), '{:.2f}'.format(x.value[k+nbranch]/1000), \
             '{:.2f}'.format(x.value[k+nbranch*2]/1000), '{:.2f}'.format(x.value[k+nbranch*3]/1000), '{:.2f}'.format(x.value[k+nbranch*4]/1000), '{:.2f}'.format(x.value[k+nbranch*5]/1000)])
             i += 1
@@ -245,7 +269,7 @@ class AreaCoordinator(object):
         sum = 0.0
         for i in range(nbranch * 10 + nbus * 6):
             s = 0.0
-            for k in range(nbus * 3  + nbranch * 6):
+            for k in range(nbus * 9  + nbranch * 6):
                 s += A[i, k] * x.value[k] 
             sum += s - b[i]
             #print(s, b[i])  
