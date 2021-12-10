@@ -32,32 +32,32 @@ def area_info(G, edge, branch_sw_data, bus_info, sourcebus):
             area = k
             break
     
-    bus_info_area1 = {}
+    bus_info_area_i = {}
     idx = 0
     for key, val_bus in bus_info.items():
         if key in area:
-            bus_info_area1[key] = {}
-            bus_info_area1[key]['idx'] = idx
-            bus_info_area1[key]['phases'] = bus_info[key]['phases']
-            bus_info_area1[key]['nodes'] = bus_info[key]['nodes']
-            bus_info_area1[key]['injection'] = bus_info[key]['injection']
+            bus_info_area_i[key] = {}
+            bus_info_area_i[key]['idx'] = idx
+            bus_info_area_i[key]['phases'] = bus_info[key]['phases']
+            bus_info_area_i[key]['nodes'] = bus_info[key]['nodes']
+            bus_info_area_i[key]['injection'] = bus_info[key]['injection']
             idx += 1
     idx = 0
-    branch_sw_data_area1 = {}
+    branch_sw_data_area_i = {}
     for key, val_bus in branch_sw_data.items():
-        if val_bus['fr_bus'] in bus_info_area1 and val_bus['to_bus'] in bus_info_area1:
-            branch_sw_data_area1[key] = {}
-            branch_sw_data_area1[key]['idx'] = idx
-            branch_sw_data_area1[key]['type']= branch_sw_data[key]['type']
-            branch_sw_data_area1[key] ['from'] = bus_info_area1[branch_sw_data[key]['fr_bus']]['idx']
-            branch_sw_data_area1[key] ['to'] =  bus_info_area1[branch_sw_data[key]['to_bus']]['idx']
-            branch_sw_data_area1[key] ['fr_bus'] = branch_sw_data[key]['fr_bus']
-            branch_sw_data_area1[key] ['to_bus'] =  branch_sw_data[key]['to_bus']
-            branch_sw_data_area1[key]['phases'] = branch_sw_data[key]['phases']
-            branch_sw_data_area1[key]['zprim'] = branch_sw_data[key]['zprim']
+        if val_bus['fr_bus'] in bus_info_area_i and val_bus['to_bus'] in bus_info_area_i:
+            branch_sw_data_area_i[key] = {}
+            branch_sw_data_area_i[key]['idx'] = idx
+            branch_sw_data_area_i[key]['type']= branch_sw_data[key]['type']
+            branch_sw_data_area_i[key] ['from'] = bus_info_area_i[branch_sw_data[key]['fr_bus']]['idx']
+            branch_sw_data_area_i[key] ['to'] =  bus_info_area_i[branch_sw_data[key]['to_bus']]['idx']
+            branch_sw_data_area_i[key] ['fr_bus'] = branch_sw_data[key]['fr_bus']
+            branch_sw_data_area_i[key] ['to_bus'] =  branch_sw_data[key]['to_bus']
+            branch_sw_data_area_i[key]['phases'] = branch_sw_data[key]['phases']
+            branch_sw_data_area_i[key]['zprim'] = branch_sw_data[key]['zprim']
             idx += 1
             
-    return branch_sw_data_area1, bus_info_area1
+    return branch_sw_data_area_i, bus_info_area_i
 
 
 def _main():
@@ -281,19 +281,19 @@ def _main():
     edge = [['60', '160'], ['97', '197'], ['54', '94']]
     # edge = [['151', '300'], ['97', '197']]
     sourcebus = '150'
-    branch_sw_data_area1, bus_info_area1 = area_info(G, edge, branch_sw_data, bus_info, sourcebus)
+    branch_sw_data_area_i, bus_info_area_i = area_info(G, edge, branch_sw_data, bus_info, sourcebus)
     
     # Give the area specific information to agents    
-    area1_agent = AreaCoordinator()
+    area_i_agent = AreaCoordinator()
     agent_bus = '160'
-    agent_bus_idx = bus_info_area1[agent_bus]['idx']
+    agent_bus_idx = bus_info_area_i[agent_bus]['idx']
     vsrc = [0.946, 0.986, 0.959]
     # vsrc = [1.0, 1.0, 1.0]
-    area1_agent.alpha_area(branch_sw_data_area1,  bus_info_area1, agent_bus, agent_bus_idx, vsrc)
+    area_i_agent.alpha_area(branch_sw_data_area_i,  bus_info_area_i, agent_bus, agent_bus_idx, vsrc)
 
     # agent_bus = '150R'
     # agent_bus_idx = bus_info[agent_bus]['idx']
-    # area1_agent.alpha_area(branch_sw_data,  bus_info, agent_bus, agent_bus_idx)
+    # area_i_agent.alpha_area(branch_sw_data,  bus_info, agent_bus, agent_bus_idx)
 
 if __name__ == '__main__':
     _main()
