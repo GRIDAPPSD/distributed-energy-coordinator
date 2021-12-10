@@ -279,13 +279,13 @@ def _main():
     # Finding the switch delimited areas
     edge = [['18', '135'], ['151', '300']]
     edge = [['60', '160'], ['97', '197'], ['54', '94']]
-    edge = [['151', '300'], ['97', '197']]
+    # edge = [['151', '300'], ['97', '197']]
     sourcebus = '150'
     branch_sw_data_area1, bus_info_area1 = area_info(G, edge, branch_sw_data, bus_info, sourcebus)
     
     # Give the area specific information to agents    
     area1_agent = AreaCoordinator()
-    agent_bus = '197'
+    agent_bus = '160'
     agent_bus_idx = bus_info_area1[agent_bus]['idx']
     vsrc = [0.946, 0.986, 0.959]
     # vsrc = [1.0, 1.0, 1.0]
