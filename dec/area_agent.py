@@ -25,30 +25,13 @@ class AreaCoordinator(object):
     # Optimization to regulate the voltage
     def alpha_area(self, branch_sw_data_case,  bus_info, agent_bus, agent_bus_idx, vsrc):
 
-        # # Choose the system to run power flow    
-        # nbranch = len(branch_sw_data_case)
-        # nbus = len(bus_info)
-        
-        # # Finding number of variables for optimization. Flow constraints/injection
-        # # at all buses and voltage constraints along each branches
-            
-        # # Find source injection beforehand for writing flow constraints
-        # sourceinj = np.zeros((3), dtype=complex)
-        # for b in bus_info.values():
-        #     sourceinj[0] -= b['injection'][0]
-        #     sourceinj[1] -= b['injection'][1]
-        #     sourceinj[2] -= b['injection'][2]
-        # # bus_info[agent_bus]['injection'] = sourceinj
-        # branch_sw_data_case['l101']['from'] = 10
-        # branch_sw_data_case['l101']['to'] = 7
 
         # Forming the optimization variables
         nbranch = len(branch_sw_data_case)
         nbus = len(bus_info)
-        m = nbus * 6
         # Number of decision variables
         n = nbus * 3  + nbus * 6 + nbranch * 6 + nbus
-        # Number of equality constraints (Injection equations (ABC) at each bus)
+        # Number of equality/inequality constraints (Injection equations (ABC) at each bus)
         p = nbranch * 100 + nbus * 6
         
         # Initialize the matrices
@@ -64,7 +47,7 @@ class AreaCoordinator(object):
         # TODO How will the maximize problem look like
         for keyb, val_bus in bus_info.items():
             P[nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx'], nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = 1
-
+            q[nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -1
         # Define the constraints
         # Constraint 1: sum(Sij) - sum(Sjk) == -sj
         def power_balance (A, b, k_frm, k_to, counteq, col, val):
@@ -122,7 +105,7 @@ class AreaCoordinator(object):
         for keyb, val_bus in bus_info.items():
             if agent_bus != keyb:
                 # Real power injection at a bus
-                A[counteq, nbus*3 + val_bus['idx']] = 1
+                A[counteq, nbus * 3 + val_bus['idx']] = 1
                 A[counteq, nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -val_bus['injection'][0].real*baseS
                 b[counteq] = 0
                 counteq +=1 
@@ -157,9 +140,9 @@ class AreaCoordinator(object):
                 G[countineq, nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = 1
                 h[countineq] = 1.0
                 countineq += 1
-                G[countineq, nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -1
-                h[countineq] = -0.5
-                countineq += 1
+                # G[countineq, nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -1
+                # h[countineq] = -0.5
+                # countineq += 1
                 
 
         # Constraint 2: Vj = Vi - Zij Sij* - Sij Zij*
@@ -188,6 +171,7 @@ class AreaCoordinator(object):
                 z = val_br['zprim']
                 v_lim.append(val_br['from'])
                 v_lim.append(val_br['to'])
+                print(val_br)
                 # Writing three phase voltage constraints
                 # Phase A
                 paa, qaa = -2 * z[0,0].real, -2 * z[0,0].imag
@@ -237,13 +221,13 @@ class AreaCoordinator(object):
                 countineq += 1
                 # Lower Bound
                 G[countineq, k] = -1
-                h[countineq] = -(0.9) ** 2
+                h[countineq] = -(0.95) ** 2
                 countineq += 1
                 G[countineq, k+nbus] = -1
-                h[countineq] = -(0.9) ** 2
+                h[countineq] = -(0.95) ** 2
                 countineq += 1
                 G[countineq, k+nbus*2] = -1
-                h[countineq] = -(0.9) ** 2
+                h[countineq] = -(0.95) ** 2
                 countineq += 1
 
         # constant_term = v_meas[0]**2 + v_meas[1]**2 + pmeas[0]**2 + pmeas[1]**2
@@ -304,8 +288,8 @@ class AreaCoordinator(object):
         injection = []
         for k in range(nbus):
             injection.append([name[k], '{:.3f}'.format((x.value[k+ nbus*3])*mul), '{:.3f}'.format((x.value[nbus*4+k])*mul), \
-            '{:.3f}'.format((x.value[nbus*5+k])*mul)])
-        print(tabulate(injection, headers=['Bus Name', 'P_Ainj', 'P_Binj', 'P_Cinj'], tablefmt='psql'))
+            '{:.3f}'.format((x.value[nbus*5+k])*mul), '{:.3f}'.format(x.value[nbus * 3  + nbus * 6 + nbranch * 6 +k])])
+        print(tabulate(injection, headers=['Bus Name', 'P_Ainj', 'P_Binj', 'P_Cinj', 'Alpha'], tablefmt='psql'))
 
         sum = 0.0
         for i in range(nbranch * 100 + nbus * 6):
