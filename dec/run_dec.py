@@ -68,6 +68,7 @@ def _main():
     simulation_id = '725830594'
     feeder_mrid = "_C1C3E687-6FFD-C753-582B-632A27E28507"
     # feeder_mrid = "_E407CBB6-8C8D-9BC9-589C-AB83FBF0826D"
+    # feeder_mrid = "_59AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
     model_api_topic = "goss.gridappsd.process.request.data.powergridmodel"
     sparql_mgr = sparql_mgr = SPARQLManager(gapps, feeder_mrid, model_api_topic, simulation_id)
     ysparse, nodelist = sparql_mgr.ybus_export()
@@ -161,7 +162,11 @@ def _main():
         branch_sw_data[line_name] = {}
         branch_sw_data[line_name]['idx'] = idx_line
         branch_sw_data[line_name]['type']= 'LINE'
-        ph = [ord(letter) - 64 for letter in  obj['phases']['value']]
+        if 's1' in obj['phases']['value']:
+            ph = [1, 2]
+        else:
+            ph = [ord(letter) - 64 for letter in  obj['phases']['value']]
+        # print(obj['phases']['value'])
         branch_sw_data[line_name]['phases'] = ph
         branch_sw_data[line_name] ['from'] = bus_info[obj['bus1']['value'].upper()]['idx']
         branch_sw_data[line_name] ['to'] = bus_info[obj['bus2']['value'].upper()]['idx']
@@ -219,7 +224,6 @@ def _main():
     #         ratedU[xfmr_name] = {}
     #     ratedU[xfmr_name][enum] = int(obj['baseV']['value'])
 
-    reg_rem = ['reg3a', 'reg4a', 'reg4b']
     for idx, obj in enumerate(xmfrs):
         # if idx % 2 == 0 and obj['xfmr_name']['value'] not in reg_rem: 
         xmfr_name = obj['xfmr_name']['value']
@@ -228,7 +232,6 @@ def _main():
             branch_sw_data[xmfr_name]['idx'] = idx_line + idx_xmfr
             branch_sw_data[xmfr_name]['type']= 'REG'
             ph = [ord(letter) - 64 for letter in  'ABC']
-            print(ph, obj['xfmr_name']['value'])
             branch_sw_data[xmfr_name]['phases'] = ph
             branch_sw_data[xmfr_name] ['from'] = bus_info[obj['bus']['value'].upper()]['idx']
             branch_sw_data[xmfr_name] ['to'] = bus_info[xmfrs[idx+1]['bus']['value'].upper()]['idx']
@@ -238,8 +241,6 @@ def _main():
             branch_sw_data[xmfr_name]['zprim'] = z_prim
             idx_xmfr += 1
             G.add_edge(obj['bus']['value'].upper(), xmfrs[idx+1]['bus']['value'].upper())
-        
-            print(branch_sw_data[xmfr_name])
         # print(branch_sw_data[xmfr_name])
 
     # from the switch information
@@ -294,7 +295,7 @@ def _main():
                             status = sw_pos[obj['isopen']['value']])
             idx_swt += 1
             switch_info.append(message)  
-        print(obj['bus1']['value'].upper(), obj['bus2']['value'].upper())
+        # print(obj['bus1']['value'].upper(), obj['bus2']['value'].upper())
         G.add_edge(obj['bus1']['value'].upper(), obj['bus2']['value'].upper())
 
     # Finding the switch delimited areas

@@ -130,7 +130,8 @@ class Secondary_Agent(object):
         v_lim = []
         for k, val_br in xfmr_tpx.items():
             # For split phase transformer, we use interlace design
-            if val_br['type'] == 'XFMR':
+            if val_br['type'] == 'SPLIT_PHASE':
+                pq_index = val_br['idx'] 
                 zp = val_br['impedance']
                 zs = val_br['impedance1']
                 v_lim.append(val_br['from'])
@@ -143,7 +144,7 @@ class Secondary_Agent(object):
                 counteq += 1
             
             # For triplex line, we assume there is no mutual coupling
-            if val_br['type'] != 'XFMR':
+            if val_br['type'] != 'SPLIT_PHASE':
                 zp = val_br['impedance']
                 v_lim.append(val_br['from'])
                 v_lim.append(val_br['to'])
@@ -204,6 +205,7 @@ class Secondary_Agent(object):
             flow.append([name[i], from_bus[i], to_bus[i], '{:.3f}'.format(x.value[k]*mul), '{:.3f}'.format(x.value[k+nbranch]*mul)])
             i += 1
         print(tabulate(flow, headers=['Line Name', 'from', 'to', 'P_s1s2', 'Q_s1s2'], tablefmt='psql'))
+        pq_inj = [x.value[nbus*3 + pq_index]*mul + 1j  * x.value[nbus*3 + nbranch + pq_index]*mul]
         
         name = []
         for key, val_br in bus_info.items():
@@ -236,4 +238,5 @@ class Secondary_Agent(object):
 
         objective = (prob.value)
         status = prob.status
-        return objective, status
+        
+        return pq_inj

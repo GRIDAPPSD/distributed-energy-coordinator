@@ -25,18 +25,18 @@ class AreaCoordinator(object):
     # Optimization to regulate the voltage
     def alpha_area(self, branch_sw_data_case,  bus_info, agent_bus, agent_bus_idx, vsrc):
 
-
         # Forming the optimization variables
         nbranch = len(branch_sw_data_case)
         nbus = len(bus_info)
+        print("The number of bus and branches in an area: ", nbus, nbranch)
         # Number of decision variables
         n = nbus * 3  + nbus * 6 + nbranch * 6 + nbus
         # Number of equality/inequality constraints (Injection equations (ABC) at each bus)
         p = nbranch * 100 + nbus * 6
         
         # Initialize the matrices
-        P = np.random.randn(n, n) * 0
-        q = np.random.randn(n) * 0
+        P = np.zeros((n, n)) 
+        q = np.zeros(n)
         A = np.zeros((p, n))
         b = np.zeros(p)  
         G = np.zeros((p, n))
@@ -45,9 +45,11 @@ class AreaCoordinator(object):
         P = P.T @ P
         # The objective function is written inside P
         # TODO How will the maximize problem look like
+        print("Formulating objective function")
         for keyb, val_bus in bus_info.items():
             P[nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx'], nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = 1
             q[nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -1
+ 
         # Define the constraints
         # Constraint 1: sum(Sij) - sum(Sjk) == -sj
         def power_balance (A, b, k_frm, k_to, counteq, col, val):
@@ -60,7 +62,8 @@ class AreaCoordinator(object):
             b[counteq] = 0
             return A, b
 
-        # Define it for both real and reactive power
+        # Define BFM constraints for both real and reactive power
+        print("Formulating power flow constraints")
         counteq = 0
         baseS = 1 / (1000000 * 100 / 3)
         for keyb, val_bus in bus_info.items():
@@ -78,7 +81,6 @@ class AreaCoordinator(object):
                     ind_to += 1
                     ind_frm += 1
                 # Real Power balance equations
-                print(keyb, k_frm, k_to)
                 # Phase A
                 A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*9, val_bus['idx'] + nbus*3 )
                 counteq +=1
@@ -101,6 +103,7 @@ class AreaCoordinator(object):
                 counteq +=1 
             
         # Make injection a decision variable
+        print("Formulating injection constraints")
         countineq = 0
         for keyb, val_bus in bus_info.items():
             if agent_bus != keyb:
@@ -161,7 +164,8 @@ class AreaCoordinator(object):
             b[counteq] = 0.0
             return A, b
         
-        # Write the constraints for connected branches only
+        # Write the voltage constraints for connected branches only
+        print("Formulating voltage constraints")
         idx = 0
         v_lim = []
         for k, val_br in branch_sw_data_case.items():
@@ -171,7 +175,6 @@ class AreaCoordinator(object):
                 z = val_br['zprim']
                 v_lim.append(val_br['from'])
                 v_lim.append(val_br['to'])
-                print(val_br)
                 # Writing three phase voltage constraints
                 # Phase A
                 paa, qaa = -2 * z[0,0].real, -2 * z[0,0].imag
@@ -205,6 +208,7 @@ class AreaCoordinator(object):
         counteq += 1
 
         # Constraint 3: 0.95^2 <= V <= 1.05^2 (For those nodes where voltage constraint exist)
+        print("Formulating voltage limit constraints")
         v_idxs = list(set(v_lim))
         #print(v_idxs)
         for k in range(nbus):
@@ -232,7 +236,7 @@ class AreaCoordinator(object):
 
         # constant_term = v_meas[0]**2 + v_meas[1]**2 + pmeas[0]**2 + pmeas[1]**2
         x = cp.Variable(n)
-        
+        print("Calling solver and solving the optimization problem")
         prob = cp.Problem(cp.Minimize((1/2)*cp.quad_form(x, P) + q.T @ x ),
                         [G @ x <= h,
                         A @ x == b])
