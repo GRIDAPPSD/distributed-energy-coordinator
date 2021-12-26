@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Nov 30 10:58:46 2021
+Created on Sun Dec 26 10:58:46 2021
 
 @author: poud579
 """
@@ -13,6 +13,7 @@ from sparql import SPARQLManager
 import networkx as nx
 import numpy as np
 import json
+from operator import add
 
 
 def secondary_info(G, sourcebus, bus_info, tpx_xfmr):
@@ -108,7 +109,7 @@ def area_info(G, edge, branch_sw_data, bus_info, sourcebus):
 
 class AgentData:
 
-    def __init__(self, ybus, cnv, node_name, energy_consumer, lines, pxfmrs, txfmrs, switches):
+    def __init__(self, ybus, cnv, node_name, energy_consumer, der_pv, lines, pxfmrs, txfmrs, switches):
         self.ybus = ybus
         self.cnv = cnv
         self.energy_consumer = energy_consumer
@@ -117,6 +118,7 @@ class AgentData:
         self.txfmrs = txfmrs
         self.switches = switches
         self.node_name = node_name
+        self.der_pv = der_pv
     
     # Extract area specific data
     def area_agent(self):
@@ -128,13 +130,12 @@ class AgentData:
         txfmrs = self.txfmrs 
         switches = self.switches
         node_name = self.node_name
-
+        der_pv = self.der_pv
         G = nx.Graph() 
-
 
         phaseIdx = {'A': '.1', 'B': '.2', 'C': '.3', 's1\ns2': '.1.2', 's2\ns1': '.1.2'}
         pq_inj = {}
-        mult = 1.0
+        mult = 0.5
         for obj in energy_consumer:
             p = float(obj['p']['value'])
             q = float(obj['q']['value'])
@@ -145,6 +146,13 @@ class AgentData:
             else:
                 pq_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * mult
         
+        pv_inj = {}
+        for obj in der_pv:
+            p = float(obj['p']['value'])
+            q = float(obj['q']['value'])
+            if 's' not in obj['phases']['value']:
+                pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q)
+
         # Extracting bus information
         print('Extracting bus information')
         bus_info = {}
@@ -181,18 +189,26 @@ class AgentData:
             bus_info[bus]['nodes'] = nodes
             sinj_nodes = np.zeros((3), dtype=complex)
             pq_a = pq_b = pq_c = complex(0, 0)
+            pv_a = pv_b = pv_c = complex(0, 0)
             # Find injection and populate the bus_info
             if bus + '.1' in pq_inj:
                 pq_a = pq_inj[bus + '.1']
+            if bus + '.1' in pv_inj:
+                pv_a = pv_inj[bus + '.1']
+
             if bus + '.2' in pq_inj:
                 pq_b = pq_inj[bus + '.2']
+            if bus + '.2' in pv_inj:
+                pv_b = pv_inj[bus + '.2']
+
             if bus + '.3' in pq_inj:
                 pq_c = pq_inj[bus + '.3']
-
-            sinj_nodes = [pq_a, pq_b, pq_c]
+            if bus + '.3' in pv_inj:
+                pv_c = pv_inj[bus + '.3']
+            sinj_nodes = [pq_a - pv_a, pq_b - pv_b, pq_c - pv_c]
             bus_info[bus]['injection'] = sinj_nodes
             idx += 1
-        
+
         # Extracting branch information
         print('Extracting branch information')
         branch_sw_data = {}
@@ -348,7 +364,6 @@ class AgentData:
         
         return bus_info, branch_sw_data, G
         
-        
     # Extract secondary specific data
     def secondary_agent(self):
         ybus = self.ybus 
@@ -359,11 +374,12 @@ class AgentData:
         txfmrs = self.txfmrs 
         switches = self.switches
         node_name = self.node_name
+        der_pv = self.der_pv
 
         G = nx.Graph() 
         phaseIdx = {'A': '.1', 'B': '.2', 'C': '.3', 's1\ns2': '.1.2', 's2\ns1': '.1.2'}
         pq_inj = {}
-        mult = 1.0
+        mult = 0.5
         for obj in energy_consumer:
             p = float(obj['p']['value'])
             q = float(obj['q']['value'])
@@ -373,18 +389,27 @@ class AgentData:
                 pq_inj[obj['bus']['value'].upper() + '.3' ] = (complex(p, q) / 3) * mult
             else:
                 pq_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * mult
-        
+        pv_inj = {}
+        for obj in der_pv:
+            p = float(obj['p']['value'])
+            q = float(obj['q']['value'])
+            if 's' in obj['phases']['value']:
+                pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q)
+
         Bus = {}
-        service_xfmr_bus = []
+        service_xfmr_bus = {}
         for obj in txfmrs:
             xfmr_name = obj['xfmr_name']['value']
             enum = int(obj['end_number']['value'])
+            # phase = obj['phase']['value']
             if xfmr_name not in Bus:
                 Bus[xfmr_name] = {}
             Bus[xfmr_name][enum] = obj['bus']['value']
+            if enum == 1:
+                phase = obj['phase']['value']
             if enum == 3 and Bus[xfmr_name][1].upper() not in service_xfmr_bus:
-                service_xfmr_bus.append(Bus[xfmr_name][1].upper())
-
+                service_xfmr_bus[Bus[xfmr_name][1].upper()] = {}
+                service_xfmr_bus[Bus[xfmr_name][1].upper()]['phase'] = phase
         # Extracting bus information
         print('Extracting bus information')
         bus_info = {}
@@ -420,11 +445,12 @@ class AgentData:
                 bus_info[bus]['nodes'] = nodes
                 sinj_nodes = np.zeros((1), dtype=complex)
                 pq_s = complex(0, 0)
+                pv_s = complex(0, 0)
                 # Find injection and populate the bus_info
                 if bus + '.1.2' in pq_inj:
                     pq_s = pq_inj[bus + '.1.2']
-
-                sinj_nodes = [pq_s]
+                    pv_s = pv_inj[bus + '.1.2']
+                sinj_nodes = [pq_s - pv_s]
                 bus_info[bus]['injection'] = sinj_nodes
                 idx += 1
 
@@ -462,9 +488,8 @@ class AgentData:
                     idx_line += 1
                     G.add_edge(obj['bus1']['value'].upper(), obj['bus2']['value'].upper())
 
-        print(len(tpx_xfmr))
-        print(len(bus_info))
-
+        # print(len(tpx_xfmr))
+        # print(len(bus_info))
         # Extracting the xmfr information (Power Transformer End)
         # SORRY- PowerTransformerEnd will not be a part of secondary agent
 
@@ -511,6 +536,7 @@ def _main():
     sparql_mgr = sparql_mgr = SPARQLManager(gapps, feeder_mrid, model_api_topic, simulation_id)
     ysparse, nodelist = sparql_mgr.ybus_export()
     energy_consumer = sparql_mgr.query_energyconsumer_lf()
+    der_pv = sparql_mgr.query_photovoltaic()
     lines = sparql_mgr.PerLengthPhaseImpedance_line_names()
     pxfmrs = sparql_mgr.PowerTransformerEnd_xfmr_names()
     txfmrs = sparql_mgr.TransformerTank_xfmr_names()
@@ -531,14 +557,14 @@ def _main():
         ybus[int(items[0])-1] [int(items[1])-1] = ybus[int(items[1])-1] [int(items[0])-1] = complex(float(items[2]), float(items[3]))
     
     print('Extracting agents data')
-    agent_input = AgentData(ybus, cnv, node_name, energy_consumer, lines, pxfmrs, txfmrs, switches)
+    agent_input = AgentData(ybus, cnv, node_name, energy_consumer, der_pv, lines, pxfmrs, txfmrs, switches)
 
     ########################### SECONDARY AGENTS #################################
     # Extracting secondary agents data from the grid data
     bus_info, tpx_xfmr, G, service_xfmr_bus = agent_input.secondary_agent()
 
     # Extract the inputs required for each secondary agents
-    # agent_bus = '96'
+    # Store the equivalent injection to pass into area agent
     message_injection = {}
     for agent_bus in service_xfmr_bus:
         # Extracting a single agent data from secondary agent data
@@ -546,17 +572,24 @@ def _main():
         # Invoke optimization with secondary agent location and indices
         sec_i_agent = Secondary_Agent()
         agent_bus_idx = bus_info_sec_agent_i[agent_bus]['idx']
-        vsrc = [0.98182]
+        vsrc = [1.02]
         pq_inj = sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx, vsrc)  
-        message_injection [agent_bus] = pq_inj
+        # Find the phase of service transformer and populate the injection vector
+        if service_xfmr_bus[agent_bus]['phase'] == 'A':
+            sec_inj = [pq_inj, complex(0, 0), complex(0, 0)]
+        elif service_xfmr_bus[agent_bus]['phase'] == 'B':
+            sec_inj = [complex(0, 0), pq_inj, complex(0, 0)]
+        else:
+            sec_inj = [complex(0, 0), complex(0, 0), pq_inj]
+        message_injection [agent_bus] = sec_inj
         # TODO If there are more than one split-phase transformer in a bus, we need to add their injection
-        
-    for k in message_injection:
-        print(k, message_injection[k]) 
-    exit()
+
     ########################### COORDINATING AGENT ###############################
     # Extracting area agent on 4.16 kv level from the grid data
     bus_info, branch_sw_data, G = agent_input.area_agent()
+    for k in message_injection:
+        bus_info[k]['injection'] = list(map(add, message_injection[k], bus_info[k]['injection']))
+        # print(k, message_injection[k]) 
     # Finding the switch delimited areas and give the area specific information to agents    
     # edge = [['18', '135'], ['151', '300_OPEN']]
     # edge = [['60', '160'], ['97', '197'], ['54', '94_OPEN']]
@@ -570,8 +603,6 @@ def _main():
     agent_bus_idx = bus_info[agent_bus]['idx']
     vsrc = [1.0, 1.0, 1.0]
     area_i_agent.alpha_area(branch_sw_data,  bus_info, agent_bus, agent_bus_idx, vsrc)
-
-    
 
 
 if __name__ == '__main__':

@@ -205,7 +205,7 @@ class Secondary_Agent(object):
             flow.append([name[i], from_bus[i], to_bus[i], '{:.3f}'.format(x.value[k]*mul), '{:.3f}'.format(x.value[k+nbranch]*mul)])
             i += 1
         print(tabulate(flow, headers=['Line Name', 'from', 'to', 'P_s1s2', 'Q_s1s2'], tablefmt='psql'))
-        pq_inj = [x.value[nbus*3 + pq_index]*mul + 1j  * x.value[nbus*3 + nbranch + pq_index]*mul]
+        pq_inj = x.value[nbus*3 + pq_index]*mul + 1j  * x.value[nbus*3 + nbranch + pq_index]*mul
         
         name = []
         for key, val_br in bus_info.items():

@@ -161,7 +161,7 @@ class SPARQLManager:
         XFMRS_QUERY = """
         PREFIX r:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
         PREFIX c:  <http://iec.ch/TC57/CIM100#>
-        SELECT ?xfmr_name ?end_number ?bus
+        SELECT ?xfmr_name ?end_number ?bus ?phase
         WHERE {
         VALUES ?fdrid {"%s"}
          ?p c:Equipment.EquipmentContainer ?fdr.
@@ -269,6 +269,38 @@ class SPARQLManager:
         ORDER by ?name
         """% self.feeder_mrid
         results = self.gad.query_data(LOAD_QUERY)
+        bindings = results['data']['results']['bindings']
+        return bindings
+    
+    def query_photovoltaic(self):
+        """Get information on loads in the feeder."""
+        # Perform the query.
+        PV_QUERY = """
+        PREFIX r:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX c:  <http://iec.ch/TC57/CIM100#>
+        SELECT ?name ?bus ?ratedS ?ratedU ?ipu ?p ?q ?fdrid (group_concat(distinct ?phs;separator="\\n") as ?phases) WHERE {
+        ?s r:type c:PhotovoltaicUnit.
+        ?s c:IdentifiedObject.name ?name.
+        ?pec c:PowerElectronicsConnection.PowerElectronicsUnit ?s.
+        VALUES ?fdrid {"%s"}  # 123 bus
+        ?pec c:Equipment.EquipmentContainer ?fdr.
+        ?fdr c:IdentifiedObject.mRID ?fdrid.
+        ?pec c:PowerElectronicsConnection.ratedS ?ratedS.
+        ?pec c:PowerElectronicsConnection.ratedU ?ratedU.
+        ?pec c:PowerElectronicsConnection.maxIFault ?ipu.
+        ?pec c:PowerElectronicsConnection.p ?p.
+        ?pec c:PowerElectronicsConnection.q ?q.
+        OPTIONAL {?pecp c:PowerElectronicsConnectionPhase.PowerElectronicsConnection ?pec.
+        ?pecp c:PowerElectronicsConnectionPhase.phase ?phsraw.
+        bind(strafter(str(?phsraw),"SinglePhaseKind.") as ?phs) }
+        ?t c:Terminal.ConductingEquipment ?pec.
+        ?t c:Terminal.ConnectivityNode ?cn. 
+        ?cn c:IdentifiedObject.name ?bus
+        }
+        GROUP by ?name ?bus ?ratedS ?ratedU ?ipu ?p ?q ?fdrid
+        ORDER by ?name
+        """% self.feeder_mrid
+        results = self.gad.query_data(PV_QUERY)
         bindings = results['data']['results']['bindings']
         return bindings
 
