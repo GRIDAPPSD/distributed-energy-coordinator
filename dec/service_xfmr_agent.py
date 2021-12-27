@@ -23,8 +23,7 @@ class Secondary_Agent(object):
         
     
     # Optimization to regulate the voltage
-    def alpha_area(self, xfmr_tpx, bus_info, agent_bus, agent_bus_idx, vsrc):
-
+    def alpha_area(self, xfmr_tpx, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus):
 
         # Forming the optimization variables
         nbranch = len(xfmr_tpx)
@@ -48,6 +47,7 @@ class Secondary_Agent(object):
         for keyb, val_bus in bus_info.items():
             P[nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx'], nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = 1
             q[nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = -1
+
         # Define the constraints
         # Constraint 1: sum(Sij) - sum(Sjk) == -sj
         def power_balance (A, b, k_frm, k_to, counteq, col, val):
@@ -58,6 +58,15 @@ class Secondary_Agent(object):
             
             A[counteq, val] = -1
             b[counteq] = 0
+            return A, b
+        
+        def reac_power_balance (A, b, k_frm, k_to, counteq, col, val):
+            for k in k_frm:
+                A[counteq, col+k] = -1
+            for k in k_to:
+                A[counteq, col+k] = 1
+
+            b[counteq] = val
             return A, b
 
         # Define it for both real and reactive power
@@ -84,7 +93,8 @@ class Secondary_Agent(object):
 
                 # Reactive Power balance equations
                 # Phase 1
-                A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3+nbranch, val_bus['idx'] + nbus*2)
+                # A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3+nbranch, val_bus['idx'] + nbus*2)
+                A, b = reac_power_balance(A, b, k_frm, k_to, counteq, nbus*3 + nbranch, val_bus['injection'][0].imag*baseS)
                 counteq +=1
                 
             
@@ -99,19 +109,27 @@ class Secondary_Agent(object):
                 counteq +=1 
 
                 # Reactive power injection at a bus
-                A[counteq, nbus * 2 + val_bus['idx']] = 1
-                A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = -val_bus['injection'][0].imag*baseS
-                b[counteq] = 0
-                counteq +=1 
+                # A[counteq, nbus * 2 + val_bus['idx']] = 1
+                # A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = -val_bus['injection'][0].imag*baseS
+                # b[counteq] = 0
+                # counteq +=1 
 
                 # Inequality constraints for injection
                 G[countineq, nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = 1
                 h[countineq] = 1.0
                 countineq += 1
-                # G[countineq, nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -1
-                # h[countineq] = -0.5
-                # countineq += 1
-                
+
+                G[countineq, nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = -1
+                h[countineq] = -0.01
+                countineq += 1
+
+        # Enforce all alpha to be equal by a secondary agent
+        for k in range(nbus-1):
+            A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + k] = 1
+            A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + k+1] = -1
+            b[counteq] = 0
+            counteq += 1  
+
         # Constraint 2: Vj = Vi - Zij Sij* - Sij Zij*
         def voltage_cons (A, b, p, frm, to, counteq, p_pri, q_pri, p_sec, q_sec):
             A[counteq, frm] = 1
@@ -128,10 +146,11 @@ class Secondary_Agent(object):
         # Write the constraints for connected branches only
         idx = 0
         v_lim = []
+        pq_index = []
         for k, val_br in xfmr_tpx.items():
             # For split phase transformer, we use interlace design
             if val_br['type'] == 'SPLIT_PHASE':
-                pq_index = val_br['idx'] 
+                pq_index.append(val_br['idx']) 
                 zp = val_br['impedance']
                 zs = val_br['impedance1']
                 v_lim.append(val_br['from'])
@@ -163,7 +182,7 @@ class Secondary_Agent(object):
 
         # Constraint 3: 0.95^2 <= V <= 1.05^2 (For those nodes where voltage constraint exist)
         v_idxs = list(set(v_lim))
-        #print(v_idxs)
+        # print(v_idxs)
         for k in range(nbus):
             if k in v_idxs:
                 # Upper bound
@@ -184,7 +203,7 @@ class Secondary_Agent(object):
         # prob = cp.Problem(cp.Minimize((1)*cp.quad_form(x, P) + q.T @ x),
         #             [A @ x == b])
         # prob.solve(verbose=True)
-        prob.solve(solver=cp.ECOS, verbose=True)
+        prob.solve(solver=cp.ECOS, verbose=True, max_iters=500)
 
         # Print result.
         print("\nThe optimal value is", (prob.value))
@@ -205,8 +224,24 @@ class Secondary_Agent(object):
             flow.append([name[i], from_bus[i], to_bus[i], '{:.3f}'.format(x.value[k]*mul), '{:.3f}'.format(x.value[k+nbranch]*mul)])
             i += 1
         print(tabulate(flow, headers=['Line Name', 'from', 'to', 'P_s1s2', 'Q_s1s2'], tablefmt='psql'))
-        pq_inj = x.value[nbus*3 + pq_index]*mul + 1j  * x.value[nbus*3 + nbranch + pq_index]*mul
         
+        # Extract the equivalent injections from service transformer bus
+        if len(pq_index) < 2:
+            pq_inj = x.value[nbus*3 + pq_index[0]]*mul*1000 + 1j  * x.value[nbus*3 + nbranch + pq_index[0]]*mul*1000
+            if service_xfmr_bus[agent_bus]['phase'] == 'A':
+                sec_inj = [pq_inj, complex(0, 0), complex(0, 0)]
+            elif service_xfmr_bus[agent_bus]['phase'] == 'B':
+                sec_inj = [complex(0, 0), pq_inj, complex(0, 0)]
+            else:
+                sec_inj = [complex(0, 0), complex(0, 0), pq_inj]
+        else:
+            # if len(pq_index) is > 2, we hardcode for a bus which has three split phase transformers connected to it.
+            pq_inj_A = x.value[nbus*3 + pq_index[0]]*mul*1000 + 1j  * x.value[nbus*3 + nbranch + pq_index[0]]*mul*1000
+            pq_inj_B = x.value[nbus*3 + pq_index[1]]*mul*1000 + 1j  * x.value[nbus*3 + nbranch + pq_index[1]]*mul*1000
+            pq_inj_C = x.value[nbus*3 + pq_index[2]]*mul*1000 + 1j  * x.value[nbus*3 + nbranch + pq_index[2]]*mul*1000
+            sec_inj = [pq_inj_A, pq_inj_B, pq_inj_C]
+        
+        # Print node voltages
         name = []
         for key, val_br in bus_info.items():
             name.append(key)
@@ -239,4 +274,4 @@ class Secondary_Agent(object):
         objective = (prob.value)
         status = prob.status
         
-        return pq_inj
+        return sec_inj

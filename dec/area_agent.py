@@ -210,18 +210,19 @@ class AreaCoordinator(object):
         # Constraint 3: 0.95^2 <= V <= 1.05^2 (For those nodes where voltage constraint exist)
         print("Formulating voltage limit constraints")
         v_idxs = list(set(v_lim))
+        vmax = 1.05
         #print(v_idxs)
         for k in range(nbus):
             if k in v_idxs:
                 # Upper bound
                 G[countineq, k] = 1
-                h[countineq] = (1.05) ** 2
+                h[countineq] = vmax ** 2
                 countineq += 1
                 G[countineq, k+nbus] = 1
-                h[countineq] = (1.05) ** 2
+                h[countineq] = vmax ** 2
                 countineq += 1
                 G[countineq, k+nbus*2] = 1
-                h[countineq] = (1.05) ** 2
+                h[countineq] = vmax ** 2
                 countineq += 1
                 # Lower Bound
                 G[countineq, k] = -1
