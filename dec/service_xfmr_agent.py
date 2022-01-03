@@ -23,7 +23,7 @@ class Secondary_Agent(object):
         
     
     # Optimization to regulate the voltage
-    def alpha_area(self, xfmr_tpx, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus):
+    def alpha_area(self, xfmr_tpx, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus, ratedS):
 
         # Forming the optimization variables
         nbranch = len(xfmr_tpx)
@@ -71,7 +71,7 @@ class Secondary_Agent(object):
 
         # Define it for both real and reactive power
         counteq = 0
-        baseS = 1 / (50000)
+        baseS = 1 / (ratedS)
         for keyb, val_bus in bus_info.items():
             if agent_bus != keyb:
                 k_frm = []
@@ -87,12 +87,13 @@ class Secondary_Agent(object):
                     ind_to += 1
                     ind_frm += 1
                 # Real Power balance equations
-                # Phase 1
+                # TODO: Include the PV contribution here. PV power will be a decision variable afterwards
+                # Phase S1
                 A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3, val_bus['idx'] + nbus*1 )
                 counteq +=1
 
                 # Reactive Power balance equations
-                # Phase 1
+                # Phase S1
                 # A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3+nbranch, val_bus['idx'] + nbus*2)
                 A, b = reac_power_balance(A, b, k_frm, k_to, counteq, nbus*3 + nbranch, val_bus['injection'][0].imag*baseS)
                 counteq +=1
@@ -156,7 +157,7 @@ class Secondary_Agent(object):
                 v_lim.append(val_br['from'])
                 v_lim.append(val_br['to'])
                 # Writing voltage constraints
-                # Phase 1
+                # Phase S1
                 p_pri, q_pri = -2 * zp[0].real, -2 * zp[0].imag
                 p_sec, q_sec = -2 * zs[0].real, -2 * zs[0].imag
                 A, b = voltage_cons(A, b, idx, val_br['from'], val_br['to'], counteq, p_pri, q_pri, p_sec, q_sec)
@@ -164,13 +165,15 @@ class Secondary_Agent(object):
             
             # For triplex line, we assume there is no mutual coupling
             if val_br['type'] != 'SPLIT_PHASE':
+                # The impedance of line will be converted into pu here. 
+                zbase = 120.0 * 120.0 / ratedS
                 zp = val_br['impedance']
                 v_lim.append(val_br['from'])
                 v_lim.append(val_br['to'])
                 # Writing voltage constraints
-                # Phase 1
+                # Phase S1
                 p_s1, q_s1 = 0, 0
-                p_s2, q_s2 = -2 * zp[0].real, -2 * zp[0].imag
+                p_s2, q_s2 = -2 * zp[0].real / zbase, -2 * zp[0].imag / zbase
                 A, b = voltage_cons(A, b, idx, val_br['from'], val_br['to'], counteq, p_s1, q_s1, p_s2, q_s2)
                 counteq += 1
             idx += 1
@@ -273,5 +276,4 @@ class Secondary_Agent(object):
 
         objective = (prob.value)
         status = prob.status
-        
         return sec_inj
