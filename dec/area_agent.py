@@ -48,7 +48,7 @@ class AreaCoordinator(object):
         print("Formulating objective function")
         for keyb, val_bus in bus_info.items():
             P[nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx'], nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = 1
-            q[nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -1
+            q[nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -2
  
         # Define the constraints
         # Constraint 1: sum(Sij) - sum(Sjk) == -sj
@@ -60,6 +60,15 @@ class AreaCoordinator(object):
             
             A[counteq, val] = -1
             b[counteq] = 0
+            return A, b
+        
+        def reac_power_balance (A, b, k_frm, k_to, counteq, col, val):
+            for k in k_frm:
+                A[counteq, col+k] = -1
+            for k in k_to:
+                A[counteq, col+k] = 1
+
+            b[counteq] = val
             return A, b
 
         # Define BFM constraints for both real and reactive power
@@ -93,13 +102,13 @@ class AreaCoordinator(object):
 
                 # Reactive Power balance equations
                 # Phase A
-                A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*9+nbranch*3, val_bus['idx'] + nbus*6)
+                A, b = reac_power_balance(A, b, k_frm, k_to, counteq, nbus*9+nbranch*3, val_bus['injection'][0].imag*baseS)
                 counteq +=1
                 # Phase B
-                A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*9+nbranch*4, val_bus['idx'] + nbus*7)
+                A, b = reac_power_balance(A, b, k_frm, k_to, counteq, nbus*9+nbranch*4, val_bus['injection'][1].imag*baseS)
                 counteq +=1
                 # Phase C
-                A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*9+nbranch*5, val_bus['idx'] + nbus*8)
+                A, b = reac_power_balance(A, b, k_frm, k_to, counteq, nbus*9+nbranch*5, val_bus['injection'][2].imag*baseS)
                 counteq +=1 
             
         # Make injection a decision variable
@@ -121,18 +130,18 @@ class AreaCoordinator(object):
                 b[counteq] = 0
                 counteq +=1 
                 # Reactive power injection at a bus
-                A[counteq, nbus*6 + val_bus['idx']] = 1
-                A[counteq, nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -val_bus['injection'][0].imag*baseS
-                b[counteq] = 0
-                counteq +=1 
-                A[counteq, val_bus['idx'] + nbus*7] = 1
-                A[counteq, nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -val_bus['injection'][1].imag*baseS
-                b[counteq] = 0
-                counteq +=1 
-                A[counteq, val_bus['idx'] + nbus*8] = 1
-                A[counteq, nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -val_bus['injection'][2].imag*baseS
-                b[counteq] = 0
-                counteq +=1
+                # A[counteq, nbus*6 + val_bus['idx']] = 1
+                # A[counteq, nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -val_bus['injection'][0].imag*baseS
+                # b[counteq] = 0
+                # counteq +=1 
+                # A[counteq, val_bus['idx'] + nbus*7] = 1
+                # A[counteq, nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -val_bus['injection'][1].imag*baseS
+                # b[counteq] = 0
+                # counteq +=1 
+                # A[counteq, val_bus['idx'] + nbus*8] = 1
+                # A[counteq, nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -val_bus['injection'][2].imag*baseS
+                # b[counteq] = 0
+                # counteq +=1
 
                 # Equality constraints for injection
                 # A[counteq, nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = 1
@@ -146,6 +155,13 @@ class AreaCoordinator(object):
                 # G[countineq, nbus * 3  + nbus * 6 + nbranch * 6 + val_bus['idx']] = -1
                 # h[countineq] = -0.5
                 # countineq += 1
+        
+        # Enforce all alpha to be equal within an area
+        for k in range(nbus-1):
+            A[counteq, nbus * 3  + nbus * 6 + nbranch * 6 + k] = 1
+            A[counteq, nbus * 3  + nbus * 6 + nbranch * 6 + k+1] = -1
+            b[counteq] = 0
+            counteq += 1  
                 
 
         # Constraint 2: Vj = Vi - Zij Sij* - Sij Zij*
@@ -238,13 +254,14 @@ class AreaCoordinator(object):
         # constant_term = v_meas[0]**2 + v_meas[1]**2 + pmeas[0]**2 + pmeas[1]**2
         x = cp.Variable(n)
         print("Calling solver and solving the optimization problem")
-        prob = cp.Problem(cp.Minimize((1/2)*cp.quad_form(x, P) + q.T @ x ),
+        prob = cp.Problem(cp.Minimize((1)*cp.quad_form(x, P) + q.T @ x ),
                         [G @ x <= h,
                         A @ x == b])
         # prob = cp.Problem(cp.Minimize((1)*cp.quad_form(x, P) + q.T @ x),
         #             [A @ x == b])
         # prob.solve(verbose=True)
-        prob.solve(solver=cp.ECOS, verbose=True)
+        prob.solve(solver=cp.ECOS, verbose=True, max_iters=500, abstol=1e-4)
+        # prob.solve(solver=cp.OSQP, verbose=True)
 
         # Print result.
         print("\nThe optimal value is", (prob.value))

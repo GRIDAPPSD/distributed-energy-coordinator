@@ -606,43 +606,50 @@ def _main():
     print('Extracting agents data')
     agent_input = AgentData(ybus, cnv, node_name, energy_consumer, der_pv, lines, pxfmrs, txfmrs, txfmrs_r, txfmrs_z, switches)
 
-    ########################### SECONDARY AGENTS #################################
-    # Extracting secondary agents data from the grid data
-    bus_info, tpx_xfmr, G, service_xfmr_bus, RatedS = agent_input.secondary_agent()
+    # Starting the iteration and message exchange
+    count = 0
+    while (1):
+        ########################### SECONDARY AGENTS #################################
+        # Extracting secondary agents data from the grid data
+        bus_info, tpx_xfmr, G, service_xfmr_bus, RatedS = agent_input.secondary_agent()
 
-    # Extract the inputs required for each secondary agents
-    # Store the equivalent injection to pass into area agent
-    message_injection = {}
-    for agent_bus in service_xfmr_bus:
-        # Extracting a single agent data from secondary agent data
-        bus_info_sec_agent_i, tpx_xfmr_agent_i, xfmr_name = secondary_info(G, agent_bus, bus_info, tpx_xfmr)
-        ratedS = RatedS[xfmr_name][1]
-        # Invoke optimization with secondary agent location and indices
-        sec_i_agent = Secondary_Agent()
-        agent_bus_idx = bus_info_sec_agent_i[agent_bus]['idx']
-        vsrc = [1.0334]
-        sec_inj = sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus, ratedS)  
-        message_injection[agent_bus] = sec_inj
+        # Extract the inputs required for each secondary agents
+        # Store the equivalent injection to pass into area agent
+        message_injection = {}
+        for agent_bus in service_xfmr_bus:
+            # Extracting a single agent data from secondary agent data
+            bus_info_sec_agent_i, tpx_xfmr_agent_i, xfmr_name = secondary_info(G, agent_bus, bus_info, tpx_xfmr)
+            ratedS = RatedS[xfmr_name][1]
+            # Invoke optimization with secondary agent location and indices
+            sec_i_agent = Secondary_Agent()
+            agent_bus_idx = bus_info_sec_agent_i[agent_bus]['idx']
+            vsrc = [1.035]
+            sec_inj = sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus, ratedS)  
+            message_injection[agent_bus] = sec_inj
+
+        ########################### COORDINATING AGENT ###############################
+        # Extracting area agent on 4.16 kv level from the grid data
+        bus_info, branch_sw_data, G = agent_input.area_agent()
+        for k in message_injection:
+            bus_info[k]['injection'] = list(map(add, message_injection[k], bus_info[k]['injection']))
+
+        # Finding the switch delimited areas and give the area specific information to agents    
+        # edge = [['18', '135'], ['151', '300_OPEN']]
+        # edge = [['60', '160'], ['97', '197'], ['54', '94_OPEN']]
+        # edge = [['151', '300'], ['97', '197']]
+        # sourcebus = '150'
+        # branch_sw_data_area_i, bus_info_area_i = area_info(G, edge, branch_sw_data, bus_info, sourcebus)
+
+        print('\n Invoke area agent')
+        area_i_agent = AreaCoordinator()
+        agent_bus = '150'
+        agent_bus_idx = bus_info['150R']['idx']
+        vsrc = [1.0, 1.0, 1.0]
+        bus_voltage = area_i_agent.alpha_area(branch_sw_data,  bus_info, agent_bus, agent_bus_idx, vsrc)
+        count += 1
         exit()
-    ########################### COORDINATING AGENT ###############################
-    # Extracting area agent on 4.16 kv level from the grid data
-    bus_info, branch_sw_data, G = agent_input.area_agent()
-    for k in message_injection:
-        bus_info[k]['injection'] = list(map(add, message_injection[k], bus_info[k]['injection']))
-
-    # Finding the switch delimited areas and give the area specific information to agents    
-    # edge = [['18', '135'], ['151', '300_OPEN']]
-    # edge = [['60', '160'], ['97', '197'], ['54', '94_OPEN']]
-    # edge = [['151', '300'], ['97', '197']]
-    # sourcebus = '150'
-    # branch_sw_data_area_i, bus_info_area_i = area_info(G, edge, branch_sw_data, bus_info, sourcebus)
-
-    print('\n Invoke area agent')
-    area_i_agent = AreaCoordinator()
-    agent_bus = '150R'
-    agent_bus_idx = bus_info[agent_bus]['idx']
-    vsrc = [1.0, 1.0, 1.0]
-    area_i_agent.alpha_area(branch_sw_data,  bus_info, agent_bus, agent_bus_idx, vsrc)
+        if count > 1:
+            break
 
 
 if __name__ == '__main__':
