@@ -226,7 +226,8 @@ class AreaCoordinator(object):
         # Constraint 3: 0.95^2 <= V <= 1.05^2 (For those nodes where voltage constraint exist)
         print("Formulating voltage limit constraints")
         v_idxs = list(set(v_lim))
-        vmax = 1.05
+        # For now, keep it 1.2 as it is only supplying voltages to service xfmr agent based on BFM
+        vmax = 1.2
         #print(v_idxs)
         for k in range(nbus):
             if k in v_idxs:
@@ -313,16 +314,16 @@ class AreaCoordinator(object):
             '{:.3f}'.format((x.value[nbus*5+k])*mul), '{:.3f}'.format(x.value[nbus * 3  + nbus * 6 + nbranch * 6 +k])])
         print(tabulate(injection, headers=['Bus Name', 'P_Ainj', 'P_Binj', 'P_Cinj', 'Alpha'], tablefmt='psql'))
 
-        sum = 0.0
-        for i in range(nbranch * 100 + nbus * 6):
-            s = 0.0
-            for k in range(nbus * 3  + nbus * 6 + nbranch * 6 + nbus):
-                s += A[i, k] * x.value[k] 
-            sum += s - b[i]
-            #print(s, b[i])  
+        # sum = 0.0
+        # for i in range(nbranch * 100 + nbus * 6):
+        #     s = 0.0
+        #     for k in range(nbus * 3  + nbus * 6 + nbranch * 6 + nbus):
+        #         s += A[i, k] * x.value[k] 
+        #     sum += s - b[i]
+        #     #print(s, b[i])  
             
-        print("\n The Ax-b expression sum is:", sum, "\n")
+        # print("\n The Ax-b expression sum is:", sum, "\n")
 
         objective = (prob.value)
         status = prob.status
-        return objective, status
+        return bus_voltage
