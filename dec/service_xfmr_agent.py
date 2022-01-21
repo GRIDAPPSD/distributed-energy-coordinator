@@ -23,7 +23,7 @@ class Secondary_Agent(object):
         
     
     # Optimization to regulate the voltage
-    def alpha_area(self, xfmr_tpx, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus, ratedS):
+    def alpha_area(self, xfmr_tpx, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus, ratedS, alpha_avg):
 
         # Forming the optimization variables
         nbranch = len(xfmr_tpx)
@@ -46,7 +46,7 @@ class Secondary_Agent(object):
         # TODO How will the maximize problem look like
         for keyb, val_bus in bus_info.items():
             P[nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx'], nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = 1
-            q[nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = -1
+            q[nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = - 2 * alpha_avg
 
         # Define the constraints
         # Constraint 1: sum(Sij) - sum(Sjk) == -sj
@@ -96,7 +96,7 @@ class Secondary_Agent(object):
                 # Phase S1
                 # A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3+nbranch, val_bus['idx'] + nbus*2)
                 A, b = reac_power_balance(A, b, k_frm, k_to, counteq, nbus*3 + nbranch, val_bus['injection'][0].imag*baseS)
-                counteq +=1
+                counteq += 1
                 
             
         # Make injection a decision variable
@@ -116,20 +116,22 @@ class Secondary_Agent(object):
                 # counteq +=1 
 
                 # Inequality constraints for injection
-                G[countineq, nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = 1
-                h[countineq] = 1.0
-                countineq += 1
+                # G[countineq, nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = 1
+                # h[countineq] = 2
+                # countineq += 1
 
-                G[countineq, nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = -1
-                h[countineq] = -0.01
-                countineq += 1
+                # G[countineq, nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = -1
+                # h[countineq] = -2
+                # countineq += 1
 
-        # Enforce all alpha to be equal by a secondary agent
-        for k in range(nbus-1):
-            A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + k] = 1
-            A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + k+1] = -1
-            b[counteq] = 0
-            counteq += 1  
+        # Enforce all alpha to be equal by a secondary agent. Might not be feasible always.
+        # Allow different alpha if voltage is very high
+        if vsrc[0] < 1.06:
+            for k in range(nbus-1):
+                A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + k] = 1
+                A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + k+1] = -1
+                b[counteq] = 0
+                counteq += 1  
 
         # Constraint 2: Vj = Vi - Zij Sij* - Sij Zij*
         def voltage_cons (A, b, p, frm, to, counteq, p_pri, q_pri, p_sec, q_sec):
@@ -187,7 +189,7 @@ class Secondary_Agent(object):
         v_idxs = list(set(v_lim))
         # print(v_idxs)
         for k in range(nbus):
-            if k in v_idxs:
+            if k in v_idxs and k != agent_bus_idx:
                 # Upper bound
                 G[countineq, k] = 1
                 h[countineq] = (1.05) ** 2
@@ -197,17 +199,15 @@ class Secondary_Agent(object):
                 h[countineq] = -(0.95) ** 2
                 countineq += 1
 
-        # constant_term = v_meas[0]**2 + v_meas[1]**2 + pmeas[0]**2 + pmeas[1]**2
-        x = cp.Variable(n)
-        
-        prob = cp.Problem(cp.Minimize((1/2)*cp.quad_form(x, P) + q.T @ x ),
+        x = cp.Variable(n)        
+        prob = cp.Problem(cp.Minimize((1)*cp.quad_form(x, P) + q.T @ x ),
                         [G @ x <= h,
                         A @ x == b])
         # prob = cp.Problem(cp.Minimize((1)*cp.quad_form(x, P) + q.T @ x),
         #             [A @ x == b])
         # prob.solve(verbose=True)
-        prob.solve(solver=cp.ECOS, verbose=True, max_iters=500)
-
+        # prob.solve(solver=cp.ECOS, verbose=True, max_iters=500)
+        prob.solve(solver=cp.ECOS, verbose=True, max_iters=500, feastol=1e-4)
         # Print result.
         print("\nThe optimal value is", (prob.value))
        
@@ -276,4 +276,5 @@ class Secondary_Agent(object):
 
         objective = (prob.value)
         status = prob.status
-        return sec_inj
+        alpha = x.value[nbus * 1  + nbus * 2 + nbranch * 2]
+        return sec_inj, alpha

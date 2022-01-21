@@ -14,9 +14,11 @@ import networkx as nx
 import numpy as np
 import json
 from operator import add
+import copy
+import matplotlib.pyplot as plt
 
 
-def secondary_info(G, sourcebus, bus_info, tpx_xfmr):
+def secondary_info(G, sourcebus, bus_info_sec, tpx_xfmr):
     sp_graph = list(nx.connected_components(G))
     for k in sp_graph:
         if sourcebus in k:
@@ -24,13 +26,14 @@ def secondary_info(G, sourcebus, bus_info, tpx_xfmr):
             break
     bus_info_sec_agent_i = {}
     idx = 0
-    for key, val_bus in bus_info.items():
+    for key, val_bus in bus_info_sec.items():
         if key in area:
             bus_info_sec_agent_i[key] = {}
             bus_info_sec_agent_i[key]['idx'] = idx
-            bus_info_sec_agent_i[key]['phase'] = bus_info[key]['phases']
-            bus_info_sec_agent_i[key]['nodes'] = bus_info[key]['nodes']
-            bus_info_sec_agent_i[key]['injection'] = bus_info[key]['injection']
+            bus_info_sec_agent_i[key]['phase'] = bus_info_sec[key]['phases']
+            bus_info_sec_agent_i[key]['nodes'] = bus_info_sec[key]['nodes']
+            bus_info_sec_agent_i[key]['injection'] = bus_info_sec[key]['injection']
+            bus_info_sec_agent_i[key]['pv'] = bus_info_sec[key]['pv']
             idx += 1
     
     idx = 0
@@ -53,7 +56,6 @@ def secondary_info(G, sourcebus, bus_info, tpx_xfmr):
             # branch_sw_data_sec_agent_i[key]['zprim'] = branch_sw_data[key]['zprim']
             idx += 1
     # exit()
-    
     return bus_info_sec_agent_i, tpx_xfmr_agent_i, xfmr_name
 
 
@@ -99,7 +101,6 @@ def area_info(G, edge, branch_sw_data, bus_info, sourcebus):
             branch_sw_data_area_i[key]['phases'] = branch_sw_data[key]['phases']
             branch_sw_data_area_i[key]['zprim'] = branch_sw_data[key]['zprim']
             idx += 1
-            
     return branch_sw_data_area_i, bus_info_area_i
 
 class AgentData:
@@ -148,7 +149,7 @@ class AgentData:
             p = float(obj['p']['value'])
             q = float(obj['q']['value'])
             if 's' not in obj['phases']['value']:
-                pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) 
+                pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * 0
 
         # Extracting bus information
         print('Extracting bus information')
@@ -378,7 +379,7 @@ class AgentData:
         G = nx.Graph() 
         phaseIdx = {'A': '.1', 'B': '.2', 'C': '.3', 's1\ns2': '.1.2', 's2\ns1': '.1.2'}
         pq_inj = {}
-        mult = 0.5
+        mult = 0.25
         for obj in energy_consumer:
             p = float(obj['p']['value'])
             q = float(obj['q']['value'])
@@ -393,7 +394,7 @@ class AgentData:
             p = float(obj['p']['value'])
             q = float(obj['q']['value'])
             if 's' in obj['phases']['value']:
-                pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) 
+                pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * 1.2
 
         Bus = {}
         service_xfmr_bus = {}
@@ -479,6 +480,7 @@ class AgentData:
                     pv_s = pv_inj[bus + '.1.2']
                 sinj_nodes = [pq_s - pv_s]
                 bus_info[bus]['injection'] = sinj_nodes
+                bus_info[bus]['pv'] = pv_s.real
                 idx += 1
 
         # Extracting branch information
@@ -606,32 +608,61 @@ def _main():
     print('Extracting agents data')
     agent_input = AgentData(ybus, cnv, node_name, energy_consumer, der_pv, lines, pxfmrs, txfmrs, txfmrs_r, txfmrs_z, switches)
 
+    # Extracting area agent on 4.16 kv level from the grid data
+    bus_info, branch_sw_data, G = agent_input.area_agent()
+    bus_info_inj = copy.deepcopy(bus_info)
+
+    # Extracting secondary agents data from the grid data
+    bus_info_sec, tpx_xfmr, G_sec, service_xfmr_bus, RatedS = agent_input.secondary_agent()
+
     # Starting the iteration and message exchange
     count = 0
+    # Initialize the voltage for service transformer to be 1.0 pu
+    bus_voltage = {}
+    for agent_bus in service_xfmr_bus:
+        bus_voltage[agent_bus] = {}
+        bus_voltage[agent_bus]['A'] = [1.04]
+        bus_voltage[agent_bus]['B'] = [1.04]
+        bus_voltage[agent_bus]['C'] = [1.04]
+    alpha_store = {}
+    alpha_avg_A = alpha_avg_B = alpha_avg_C = 1
+    alpha_avg = {'A': alpha_avg_A, 'B': alpha_avg_B, 'C': alpha_avg_C} 
     while (1):
         ########################### SECONDARY AGENTS #################################
-        # Extracting secondary agents data from the grid data
-        bus_info, tpx_xfmr, G, service_xfmr_bus, RatedS = agent_input.secondary_agent()
-
         # Extract the inputs required for each secondary agents
         # Store the equivalent injection to pass into area agent
+        alpha_agent = []
+        alpha_agent_A = []
+        alpha_agent_B = []
+        alpha_agent_C = []
         message_injection = {}
         for agent_bus in service_xfmr_bus:
+            alpha_store[agent_bus] = {}
             # Extracting a single agent data from secondary agent data
-            bus_info_sec_agent_i, tpx_xfmr_agent_i, xfmr_name = secondary_info(G, agent_bus, bus_info, tpx_xfmr)
+            bus_info_sec_agent_i, tpx_xfmr_agent_i, xfmr_name = secondary_info(G_sec, agent_bus, bus_info_sec, tpx_xfmr)
             ratedS = RatedS[xfmr_name][1]
             # Invoke optimization with secondary agent location and indices
             sec_i_agent = Secondary_Agent()
             agent_bus_idx = bus_info_sec_agent_i[agent_bus]['idx']
-            vsrc = [1.035]
-            sec_inj = sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus, ratedS)  
+            phase = service_xfmr_bus[agent_bus]['phase']
+            # Source bus is a transformer primary.
+            vsrc = [sum(bus_voltage[agent_bus][phase])/len(bus_voltage[agent_bus][phase])]
+            sec_inj, alpha = sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx, \
+            vsrc, service_xfmr_bus, ratedS, alpha_avg[phase])  
             message_injection[agent_bus] = sec_inj
+            alpha_agent.append(alpha)
+            if phase == 'A':
+                alpha_agent_A.append(alpha)
+            elif phase == 'B':
+                alpha_agent_B.append(alpha)
+            else:
+                alpha_agent_C.append(alpha)
 
+            alpha_store[agent_bus]['alpha'] = alpha
         ########################### COORDINATING AGENT ###############################
-        # Extracting area agent on 4.16 kv level from the grid data
-        bus_info, branch_sw_data, G = agent_input.area_agent()
+       
         for k in message_injection:
-            bus_info[k]['injection'] = list(map(add, message_injection[k], bus_info[k]['injection']))
+            bus_info[k]['injection'] = list(map(add, message_injection[k], bus_info_inj[k]['injection']))
 
         # Finding the switch delimited areas and give the area specific information to agents    
         # edge = [['18', '135'], ['151', '300_OPEN']]
@@ -644,13 +675,62 @@ def _main():
         area_i_agent = AreaCoordinator()
         agent_bus = '150'
         agent_bus_idx = bus_info['150R']['idx']
-        vsrc = [1.0, 1.0, 1.0]
-        bus_voltage = area_i_agent.alpha_area(branch_sw_data,  bus_info, agent_bus, agent_bus_idx, vsrc)
-        count += 1
-        exit()
-        if count > 1:
-            break
+        vsrc = [1.04, 1.04, 1.04]
+        bus_voltage_area = area_i_agent.alpha_area(branch_sw_data,  bus_info, agent_bus, agent_bus_idx, vsrc)
+        
+        for k in bus_voltage_area:
+            try:
+                bus_voltage[k]['A'].append(bus_voltage_area[k]['A'])
+                bus_voltage[k]['B'].append(bus_voltage_area[k]['B'])
+                bus_voltage[k]['C'].append(bus_voltage_area[k]['C'])
+            except:
+                continue
+        
+        for k in bus_voltage:
+            print(k, bus_voltage[k])
 
+        # Fine new alpha_average based on the degree of decentralization
+        # 1. Same across a service xfmr area
+        # 2. Same across a feeder
+        # 3. Same across a neighborhood. 
+        # alpha_avg = sum(alpha_agent)/len(alpha_agent)
+        alpha_avg_A = sum(alpha_agent_A)/len(alpha_agent_A)
+        alpha_avg_B = sum(alpha_agent_B)/len(alpha_agent_B)
+        alpha_avg_C = sum(alpha_agent_C)/len(alpha_agent_C)
+        alpha_avg = {'A': alpha_avg_A, 'B': alpha_avg_B, 'C': alpha_avg_C} 
+
+        count += 1
+        if count > 15:
+            phaseA = []
+            phaseB = []
+            phaseC = []
+            for k in bus_voltage_area:
+                if bus_voltage_area[k]['A'] > 0.5:
+                    phaseA.append(bus_voltage_area[k]['A']) 
+                if bus_voltage_area[k]['B'] > 0.5:
+                    phaseB.append(bus_voltage_area[k]['B']) 
+                if bus_voltage_area[k]['C'] > 0.5:
+                    phaseC.append(bus_voltage_area[k]['C']) 
+            pv_curr = []
+            for a in alpha_store:
+                # print(a, alpha_store[a]['alpha'], message_injection[a])
+                pv_curr.append(-1 * alpha_store[a]['alpha'] * sum(message_injection[a]).real)
+            break
+    plt.plot(phaseA)
+    plt.plot(phaseB)
+    plt.plot(phaseC)
+    plt.xlabel('Nodes')
+    plt.ylabel('Voltage (p.u.)')
+    plt.legend(['Phase A', 'Phase B', 'Phase C'])
+    plt.grid()
+    plt.show()
+    
+    
+    plt.plot(pv_curr)
+    plt.xlabel('Nodes')
+    plt.ylabel('PV power injected')
+    plt.grid()
+    plt.show()
 
 if __name__ == '__main__':
     _main()
