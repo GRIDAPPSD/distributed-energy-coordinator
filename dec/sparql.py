@@ -389,3 +389,5 @@ class SPARQLManager:
 
         results = self.gad.get_response("goss.gridappsd.process.request.config", message, timeout=15)
         return results['data']['vnom']
+
+
