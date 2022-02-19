@@ -23,14 +23,18 @@ class Secondary_Agent(object):
         
     
     # Optimization to regulate the voltage
-    def alpha_area(self, xfmr_tpx, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus, ratedS, alpha_avg):
+    def alpha_area(self, xfmr_tpx, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus,\
+    ratedS, alpha_avg, mu, zeta, gamma, lamda):
 
         # Forming the optimization variables
         nbranch = len(xfmr_tpx)
         nbus = len(bus_info)
+
         # Number of decision variables
-        n = nbus   + nbus * 2 + nbranch * 2 + nbus
-        # Number of equality/inequality constraints (Injection equations (ABC) at each bus)
+        # Voltage     PQ Inj      PQ Flow     PV_cur alpha
+        n = nbus   + nbus * 2 + nbranch * 2 + nbus + nbus
+
+        # Number of equality/inequality constraints
         p = nbranch * 100 + nbus * 6
         
         # Initialize the matrices
@@ -43,11 +47,32 @@ class Secondary_Agent(object):
     
         P = P.T @ P
         # The objective function is written inside P
+
         # TODO How will the maximize problem look like
         for keyb, val_bus in bus_info.items():
-            P[nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx'], nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = 1
-            q[nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = - 2 * alpha_avg
+            P[nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx'], nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx']] = 1
+            q[nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx']] = - 2 * 0        
+        # If alpha is equal within an area, then there is no need of doing min for all buses
+        linear_term = 0
+        alpha_avg_sum = 0
+        lambda_update = []
+        for agent in service_xfmr_bus:
+            if agent_bus != agent:
+                alpha_avg_sum += gamma * (alpha_avg[agent_bus] - alpha_avg[agent])
+                lambda_update.append(mu * (alpha_avg[agent_bus] - alpha_avg[agent]))
 
+        lamda[agent_bus] += lambda_update
+        linear_term += alpha_avg_sum
+        linear_term += -2 * 0.5 * zeta * alpha_avg[agent_bus]
+        linear_term -= sum(lamda[agent_bus])
+        quad_term = 1 + 0.5 * zeta
+        
+        print(quad_term)
+        print(linear_term)
+
+        # P[nbus * 1  + nbus * 2 + nbranch * 2 + nbus, nbus * 1  + nbus * 2 + nbranch * 2 + nbus] = quad_term
+        # q[nbus * 1  + nbus * 2 + nbranch * 2 + nbus] = linear_term
+        
         # Define the constraints
         # Constraint 1: sum(Sij) - sum(Sjk) == -sj
         def power_balance (A, b, k_frm, k_to, counteq, col, val):
@@ -89,13 +114,13 @@ class Secondary_Agent(object):
                 # Real Power balance equations
                 # TODO: Include the PV contribution here. PV power will be a decision variable afterwards
                 # Phase S1
-                A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3, val_bus['idx'] + nbus*1 )
+                A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3, val_bus['idx'] + nbus * 1 )
                 counteq +=1
 
                 # Reactive Power balance equations
                 # Phase S1
                 # A, b = power_balance(A, b, k_frm, k_to, counteq, nbus*3+nbranch, val_bus['idx'] + nbus*2)
-                A, b = reac_power_balance(A, b, k_frm, k_to, counteq, nbus*3 + nbranch, val_bus['injection'][0].imag*baseS)
+                A, b = reac_power_balance(A, b, k_frm, k_to, counteq, nbus*3 + nbranch, val_bus['pq'].imag*baseS)
                 counteq += 1
                 
             
@@ -103,10 +128,16 @@ class Secondary_Agent(object):
         countineq = 0
         for keyb, val_bus in bus_info.items():
             if agent_bus != keyb:
-                # Real power injection at a bus
+                # Net PV power at a node (P_net = P_PV - alpha * P_PV)
+                A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = 1
+                A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx']] = val_bus['pv'].real*baseS
+                b[counteq] = val_bus['pv'].real*baseS
+                counteq +=1 
+
+                # Real power injection at a bus (P_inj = P_load - PV_net)
                 A[counteq, nbus * 1 + val_bus['idx']] = 1
-                A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = -val_bus['injection'][0].real*baseS
-                b[counteq] = 0
+                A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + val_bus['idx']] = 1
+                b[counteq] = val_bus['pq'].real*baseS
                 counteq +=1 
 
                 # Reactive power injection at a bus
@@ -128,10 +159,16 @@ class Secondary_Agent(object):
         # Allow different alpha if voltage is very high
         if vsrc[0] < 1.06:
             for k in range(nbus-1):
-                A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + k] = 1
-                A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + k+1] = -1
+                A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + nbus + k] = 1
+                A[counteq, nbus * 1  + nbus * 2 + nbranch * 2 + nbus + k+1] = -1
                 b[counteq] = 0
                 counteq += 1  
+
+        # Alpha cannot be negative
+        for k in range(nbus):
+            G[countineq, nbus * 1  + nbus * 2 + nbranch * 2 + nbus + k] = 1
+            h[countineq] = 1
+            countineq += 1  
 
         # Constraint 2: Vj = Vi - Zij Sij* - Sij Zij*
         def voltage_cons (A, b, p, frm, to, counteq, p_pri, q_pri, p_sec, q_sec):
@@ -254,6 +291,8 @@ class Secondary_Agent(object):
         try:
             for k in range(nbus):
                 volt.append([name[k], '{:.4f}'.format(math.sqrt(x.value[k]))])
+                bus_voltage[name[k]] = {}
+                bus_voltage[name[k]]['voltage'] = math.sqrt(x.value[k])
             print(tabulate(volt, headers=['Bus Name', 'V_S1'], tablefmt='psql'))
         except:
             pass
@@ -261,20 +300,20 @@ class Secondary_Agent(object):
         print('\n Injections at buses:')
         injection = []
         for k in range(nbus):
-            injection.append([name[k], '{:.3f}'.format((x.value[k+ nbus])*mul), '{:.3f}'.format((x.value[k+ nbus*3 +nbranch*2]))])
+            injection.append([name[k], '{:.3f}'.format((x.value[k + nbus])*mul), '{:.3f}'.format((x.value[k+ nbus*3 +nbranch*2 + nbus]))])
         print(tabulate(injection, headers=['Bus Name', 'P_inj', 'Alpha'], tablefmt='psql'))
 
-        sum = 0.0
-        for i in range(nbranch * 100 + nbus * 6):
-            s = 0.0
-            for k in range(nbus * 1  + nbus * 2 + nbranch * 2 + nbus):
-                s += A[i, k] * x.value[k] 
-            sum += s - b[i]
-            #print(s, b[i])  
+        # sum = 0.0
+        # for i in range(nbranch * 100 + nbus * 6):
+        #     s = 0.0
+        #     for k in range(nbus * 1  + nbus * 2 + nbranch * 2 + nbus):
+        #         s += A[i, k] * x.value[k] 
+        #     sum += s - b[i]
+        #     #print(s, b[i])  
             
-        print("\n The Ax-b expression sum is:", sum, "\n")
+        # print("\n The Ax-b expression sum is:", sum, "\n")
 
         objective = (prob.value)
         status = prob.status
-        alpha = x.value[nbus * 1  + nbus * 2 + nbranch * 2]
-        return sec_inj, alpha
+        alpha = x.value[nbus * 1  + nbus * 2 + nbranch * 2 + nbus]
+        return sec_inj, alpha, bus_voltage, lamda
