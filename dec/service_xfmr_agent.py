@@ -24,7 +24,7 @@ class Secondary_Agent(object):
     
     # Optimization to regulate the voltage
     def alpha_area(self, xfmr_tpx, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus,\
-    ratedS, alpha_avg, mu, zeta, gamma, lamda):
+    ratedS, alpha_avg, mu1, mu2, mu3, lamda):
 
         # Forming the optimization variables
         nbranch = len(xfmr_tpx)
@@ -49,26 +49,38 @@ class Secondary_Agent(object):
         # The objective function is written inside P
 
         # TODO How will the maximize problem look like
-        for keyb, val_bus in bus_info.items():
-            P[nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx'], nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx']] = 1
-            q[nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx']] = - 2 * 0        
+        # for keyb, val_bus in bus_info.items():
+        #     P[nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx'], nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx']] = 1
+        #     q[nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx']] = - 2 * 0        
         # If alpha is equal within an area, then there is no need of doing min for all buses
         linear_term = 0
         alpha_avg_sum = 0
         lambda_update = []
         for agent in service_xfmr_bus:
             if agent_bus != agent:
-                alpha_avg_sum += gamma * (alpha_avg[agent_bus] - alpha_avg[agent])
-                lambda_update.append(mu * (alpha_avg[agent_bus] - alpha_avg[agent]))
+                alpha_avg_sum += mu2 * (alpha_avg[agent_bus] - alpha_avg[agent])
+                lambda_update.append(mu3 * (alpha_avg[agent_bus] - alpha_avg[agent]))
 
-        lamda[agent_bus] += lambda_update
+        lamda[agent_bus] +=  lambda_update
         linear_term += alpha_avg_sum
-        linear_term += -2 * 0.5 * zeta * alpha_avg[agent_bus]
-        linear_term -= sum(lamda[agent_bus])
-        quad_term = 1 + 0.5 * zeta
+        linear_term += -2 * 0.5 * mu1 * alpha_avg[agent_bus]
+        linear_term +=  sum(lamda[agent_bus])
+        quad_term = 1 + 0.5 * mu1
         
         print(quad_term)
         print(linear_term)
+        print(agent_bus, vsrc)
+
+        # print(xfmr_tpx)
+        # print(bus_info)
+        # print(agent_bus_idx)
+        # print(ratedS)
+        # quad_term = 6.0
+        # linear_term = 7.32314777975286
+        
+        for keyb, val_bus in bus_info.items():
+            P[nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx'], nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx']] = quad_term
+            q[nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx']] = linear_term
 
         # P[nbus * 1  + nbus * 2 + nbranch * 2 + nbus, nbus * 1  + nbus * 2 + nbranch * 2 + nbus] = quad_term
         # q[nbus * 1  + nbus * 2 + nbranch * 2 + nbus] = linear_term
@@ -166,9 +178,12 @@ class Secondary_Agent(object):
 
         # Alpha cannot be negative
         for k in range(nbus):
+            G[countineq, nbus * 1  + nbus * 2 + nbranch * 2 + nbus + k] = -1
+            h[countineq] = 0
+            countineq += 1  
             G[countineq, nbus * 1  + nbus * 2 + nbranch * 2 + nbus + k] = 1
             h[countineq] = 1
-            countineq += 1  
+            countineq += 1 
 
         # Constraint 2: Vj = Vi - Zij Sij* - Sij Zij*
         def voltage_cons (A, b, p, frm, to, counteq, p_pri, q_pri, p_sec, q_sec):
@@ -236,15 +251,18 @@ class Secondary_Agent(object):
                 h[countineq] = -(0.95) ** 2
                 countineq += 1
 
-        x = cp.Variable(n)        
+        x = cp.Variable(n)    
+        print("Now formulating")    
         prob = cp.Problem(cp.Minimize((1)*cp.quad_form(x, P) + q.T @ x ),
                         [G @ x <= h,
                         A @ x == b])
+        print("Now Solving") 
         # prob = cp.Problem(cp.Minimize((1)*cp.quad_form(x, P) + q.T @ x),
         #             [A @ x == b])
         # prob.solve(verbose=True)
         # prob.solve(solver=cp.ECOS, verbose=True, max_iters=500)
         prob.solve(solver=cp.ECOS, verbose=True, max_iters=500, feastol=1e-4)
+        # prob.solve(solver=cp.OSQP, verbose=True)
         # Print result.
         print("\nThe optimal value is", (prob.value))
        

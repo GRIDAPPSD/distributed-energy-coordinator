@@ -387,7 +387,7 @@ class SPARQLManager:
             "model_id": self.feeder_mrid}
         }
 
-        results = self.gad.get_response("goss.gridappsd.process.request.config", message, timeout=15)
+        results = self.gad.get_response("goss.gridappsd.process.request.config", message, timeout=25)
         return results['data']['vnom']
 
 

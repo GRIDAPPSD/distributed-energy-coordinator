@@ -641,9 +641,11 @@ def _main():
     
     # alpha_avg_A = alpha_avg_B = alpha_avg_C = 1
     # alpha_avg = {'A': alpha_avg_A, 'B': alpha_avg_B, 'C': alpha_avg_C} 
-    mu = 5
-    zeta = 10
-    gamma = 5
+
+    # Criteria for convergence
+    mu1 = 15 / len(service_xfmr_bus)
+    mu2 = 30 / len(service_xfmr_bus)
+    mu3 = 15 / len(service_xfmr_bus)
     # plot_alpha = {}
     while (1):
         ########################### SECONDARY AGENTS #################################
@@ -656,6 +658,7 @@ def _main():
         message_injection = {}
         for agent_bus in service_xfmr_bus:
             # Extracting a single agent data from secondary agent data
+            # agent_bus = '112'
             bus_info_sec_agent_i, tpx_xfmr_agent_i, xfmr_name = secondary_info(G_sec, agent_bus, bus_info_sec, tpx_xfmr)
             ratedS = RatedS[xfmr_name][1]
 
@@ -669,12 +672,14 @@ def _main():
             # sec_inj, alpha, sec_bus_voltage = \
             # sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx, \
             # vsrc, service_xfmr_bus, ratedS, alpha_avg[phase], mu, zeta, gamma, lamda, service_xfmr_bus)  
-
+            # vsrc = [1.0468433024258965]
             # Invoking the optimization
             sec_inj, alpha, sec_bus_voltage, lamda = \
             sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx, \
-            vsrc, service_xfmr_bus, ratedS, alpha_avg, mu, zeta, gamma, lamda)  
+            vsrc, service_xfmr_bus, ratedS, alpha_avg, mu1, mu2, mu3, lamda)  
             message_injection[agent_bus] = sec_inj
+            print("Solving: ", count)
+            # exit()
             # exit()
             # alpha_agent.append(alpha)
             # if phase == 'A':
