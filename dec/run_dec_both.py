@@ -637,15 +637,19 @@ def _main():
         bus_voltage[agent_bus]['B'] = [1.04]
         bus_voltage[agent_bus]['C'] = [1.04]
         alpha_avg[agent_bus] = 0.0
-        lamda[agent_bus] = np.ones(len(service_xfmr_bus)-1)
+        lamda[agent_bus] = (1/80) * np.ones(len(service_xfmr_bus)-1)
     
     # alpha_avg_A = alpha_avg_B = alpha_avg_C = 1
     # alpha_avg = {'A': alpha_avg_A, 'B': alpha_avg_B, 'C': alpha_avg_C} 
 
     # Criteria for convergence
-    mu1 = 15 / len(service_xfmr_bus)
-    mu2 = 30 / len(service_xfmr_bus)
-    mu3 = 15 / len(service_xfmr_bus)
+    # mu1 = 15 / len(service_xfmr_bus)
+    # mu2 = 30 / len(service_xfmr_bus)
+    # mu3 = 15 / len(service_xfmr_bus)
+    mu1 = 10 * 3 / len(service_xfmr_bus)
+    mu2 = 5 * 3 / len(service_xfmr_bus)
+    mu3 = 5 * 3 / len(service_xfmr_bus)
+    linear_term = []
     # plot_alpha = {}
     while (1):
         ########################### SECONDARY AGENTS #################################
@@ -674,11 +678,13 @@ def _main():
             # vsrc, service_xfmr_bus, ratedS, alpha_avg[phase], mu, zeta, gamma, lamda, service_xfmr_bus)  
             # vsrc = [1.0468433024258965]
             # Invoking the optimization
-            sec_inj, alpha, sec_bus_voltage, lamda = \
+            sec_inj, alpha, sec_bus_voltage, lamda, obj_linear = \
             sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx, \
             vsrc, service_xfmr_bus, ratedS, alpha_avg, mu1, mu2, mu3, lamda)  
             message_injection[agent_bus] = sec_inj
-            print("Solving: ", count)
+            # if count > 1:
+            #     exit()
+            # print("Solving: ", count)
             # exit()
             # exit()
             # alpha_agent.append(alpha)
@@ -690,11 +696,12 @@ def _main():
             #     alpha_agent_C.append(alpha)
 
             alpha_store[agent_bus][count] = alpha
+        linear_term.append(obj_linear)
         ########################### COORDINATING AGENT ###############################
         # plot_alpha.append(alpha)
         for k in message_injection:
             bus_info[k]['injection'] = list(map(add, message_injection[k], bus_info_inj[k]['injection']))
-            alpha_avg[k] = alpha_store[agent_bus][count]
+            alpha_avg[k] = alpha_store[k][count]
 
         # Finding the switch delimited areas and give the area specific information to agents    
         # edge = [['18', '135'], ['151', '300_OPEN']]
@@ -718,8 +725,8 @@ def _main():
             except:
                 continue
         
-        for k in bus_voltage:
-            print(k, bus_voltage[k])
+        # for k in bus_voltage:
+        #     print(k, bus_voltage[k])
 
         # Fine new alpha_average based on the degree of decentralization
         # 1. Same across a service xfmr area
@@ -733,7 +740,7 @@ def _main():
         # alpha_avg = {'A': alpha_avg_A, 'B': alpha_avg_B, 'C': alpha_avg_C} 
 
         count += 1
-        if count > 15:
+        if count > 30:
             phaseA = []
             phaseB = []
             phaseC = []
@@ -760,7 +767,7 @@ def _main():
     
     for agent_bus in service_xfmr_bus:
         alpha = []
-        for k in range(15):
+        for k in range(30):
             alpha.append(alpha_store[agent_bus][k])
         plt.plot(alpha)
     
@@ -768,6 +775,9 @@ def _main():
     plt.xlabel('Iter')
     plt.ylabel('PV power curtailment factor (alpha)')
     # plt.grid()
+    plt.show()
+
+    plt.plot(linear_term)
     plt.show()
 
 if __name__ == '__main__':

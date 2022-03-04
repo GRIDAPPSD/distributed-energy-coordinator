@@ -60,14 +60,19 @@ class Secondary_Agent(object):
             if agent_bus != agent:
                 alpha_avg_sum += mu2 * (alpha_avg[agent_bus] - alpha_avg[agent])
                 lambda_update.append(mu3 * (alpha_avg[agent_bus] - alpha_avg[agent]))
-
+        
+        print("alpha_difference: ",  alpha_avg_sum)
+        # print("lamda: ", lambda_update)
+       
         lamda[agent_bus] +=  lambda_update
         linear_term += alpha_avg_sum
+        print("Linear term from gamma: ", linear_term)
         linear_term += -2 * 0.5 * mu1 * alpha_avg[agent_bus]
-        linear_term +=  sum(lamda[agent_bus])
+        print("Linear term from own difference: ", linear_term)
+        linear_term += sum(lamda[agent_bus]) / 80
         quad_term = 1 + 0.5 * mu1
         
-        print(quad_term)
+        print("Linear term from lamda: ", linear_term)
         print(linear_term)
         print(agent_bus, vsrc)
 
@@ -79,10 +84,10 @@ class Secondary_Agent(object):
         # linear_term = 7.32314777975286
         
         for keyb, val_bus in bus_info.items():
-            P[nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx'], nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx']] = quad_term
-            q[nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx']] = linear_term
+            P[nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx'], nbus * 1  + nbus * 2 + nbranch * 2 + nbus + val_bus['idx']] = 1
+        q[nbus * 1  + nbus * 2 + nbranch * 2 + nbus] = linear_term
 
-        # P[nbus * 1  + nbus * 2 + nbranch * 2 + nbus, nbus * 1  + nbus * 2 + nbranch * 2 + nbus] = quad_term
+        P[nbus * 1  + nbus * 2 + nbranch * 2 + nbus, nbus * 1  + nbus * 2 + nbranch * 2 + nbus] += 0.5 * mu1
         # q[nbus * 1  + nbus * 2 + nbranch * 2 + nbus] = linear_term
         
         # Define the constraints
@@ -311,7 +316,7 @@ class Secondary_Agent(object):
                 volt.append([name[k], '{:.4f}'.format(math.sqrt(x.value[k]))])
                 bus_voltage[name[k]] = {}
                 bus_voltage[name[k]]['voltage'] = math.sqrt(x.value[k])
-            print(tabulate(volt, headers=['Bus Name', 'V_S1'], tablefmt='psql'))
+            # print(tabulate(volt, headers=['Bus Name', 'V_S1'], tablefmt='psql'))
         except:
             pass
         
@@ -334,4 +339,4 @@ class Secondary_Agent(object):
         objective = (prob.value)
         status = prob.status
         alpha = x.value[nbus * 1  + nbus * 2 + nbranch * 2 + nbus]
-        return sec_inj, alpha, bus_voltage, lamda
+        return sec_inj, alpha, bus_voltage, lamda, linear_term

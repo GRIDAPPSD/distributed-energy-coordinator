@@ -275,16 +275,16 @@ class AreaCoordinator(object):
             from_bus.append(val_br['fr_bus'])
             to_bus.append(val_br['to_bus'])
             name.append(key)
-        print('\n Real and Reactive Power flow:')
-        i = 0
-        flow = []
-        mul = 1/(baseS * 1000)
-        for k in range(nbus*9, nbus*9+nbranch):
-            flow.append([name[i], from_bus[i], to_bus[i], '{:.3f}'.format(x.value[k]*mul), '{:.3f}'.format(x.value[k+nbranch]*mul), \
-            '{:.3f}'.format(x.value[k+nbranch*2]*mul), '{:.3f}'.format(x.value[k+nbranch*3]*mul), '{:.3f}'.format(x.value[k+nbranch*4]*mul),\
-            '{:.3f}'.format(x.value[k+nbranch*5]*mul)])
-            i += 1
-        print(tabulate(flow, headers=['Line Name', 'from', 'to', 'P_A', 'P_B', 'P_C', 'Q_A', 'Q_B', 'Q_C'], tablefmt='psql'))
+        # print('\n Real and Reactive Power flow:')
+        # i = 0
+        # flow = []
+        # mul = 1/(baseS * 1000)
+        # for k in range(nbus*9, nbus*9+nbranch):
+        #     flow.append([name[i], from_bus[i], to_bus[i], '{:.3f}'.format(x.value[k]*mul), '{:.3f}'.format(x.value[k+nbranch]*mul), \
+        #     '{:.3f}'.format(x.value[k+nbranch*2]*mul), '{:.3f}'.format(x.value[k+nbranch*3]*mul), '{:.3f}'.format(x.value[k+nbranch*4]*mul),\
+        #     '{:.3f}'.format(x.value[k+nbranch*5]*mul)])
+        #     i += 1
+        # print(tabulate(flow, headers=['Line Name', 'from', 'to', 'P_A', 'P_B', 'P_C', 'Q_A', 'Q_B', 'Q_C'], tablefmt='psql'))
         
         name = []
         for key, val_br in bus_info.items():
@@ -307,12 +307,12 @@ class AreaCoordinator(object):
         except:
             pass
         
-        print('\n Injections at buses:')
-        injection = []
-        for k in range(nbus):
-            injection.append([name[k], '{:.3f}'.format((x.value[k+ nbus*3])*mul), '{:.3f}'.format((x.value[nbus*4+k])*mul), \
-            '{:.3f}'.format((x.value[nbus*5+k])*mul), '{:.3f}'.format(x.value[nbus * 3  + nbus * 6 + nbranch * 6 +k])])
-        print(tabulate(injection, headers=['Bus Name', 'P_Ainj', 'P_Binj', 'P_Cinj', 'Alpha'], tablefmt='psql'))
+        # print('\n Injections at buses:')
+        # injection = []
+        # for k in range(nbus):
+        #     injection.append([name[k], '{:.3f}'.format((x.value[k+ nbus*3])*mul), '{:.3f}'.format((x.value[nbus*4+k])*mul), \
+        #     '{:.3f}'.format((x.value[nbus*5+k])*mul), '{:.3f}'.format(x.value[nbus * 3  + nbus * 6 + nbranch * 6 +k])])
+        # print(tabulate(injection, headers=['Bus Name', 'P_Ainj', 'P_Binj', 'P_Cinj', 'Alpha'], tablefmt='psql'))
 
         # sum = 0.0
         # for i in range(nbranch * 100 + nbus * 6):
