@@ -377,7 +377,7 @@ class SPARQLManager:
             "model_id": self.feeder_mrid}
         }
 
-        results = self.gad.get_response("goss.gridappsd.process.request.config", message, timeout=15)
+        results = self.gad.get_response("goss.gridappsd.process.request.config", message, timeout=25)
         return results['data']['yParse'],results['data']['nodeList']
 
     def vnom_export(self):
@@ -390,4 +390,67 @@ class SPARQLManager:
         results = self.gad.get_response("goss.gridappsd.process.request.config", message, timeout=25)
         return results['data']['vnom']
 
+    def coordinates_query(self):
+        XYCOOR_QUERY = """
+        PREFIX r:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX c:  <http://iec.ch/TC57/CIM100#>
+        SELECT ?class ?name ?seq ?x ?y WHERE {
+        # feeder selection options - if all commented out, query matches all feeders
+        VALUES ?fdrid {"%s"}  # 13 bus
+        #VALUES ?fdrid {"_803ED06B-9DC7-630C-E538-D6DBBFDE022D"}  # 13 bus assets
+        ?fdr c:IdentifiedObject.mRID ?fdrid.
+        ?eq c:Equipment.EquipmentContainer ?fdr.
+        ?eq c:PowerSystemResource.Location ?loc.
+        { ?eq c:IdentifiedObject.name ?name.
+        ?eq a ?classraw.
+        bind(strafter(str(?classraw),"CIM100#") as ?class)}
+        UNION
+        { ?eq c:PowerElectronicsConnection.PowerElectronicsUnit ?unit.
+        ?unit c:IdentifiedObject.name ?name.
+        ?unit a ?classraw.
+        bind(strafter(str(?classraw),"CIM100#") as ?class)}
+        ?pt c:PositionPoint.Location ?loc.
+        ?pt c:PositionPoint.xPosition ?x.
+        ?pt c:PositionPoint.yPosition ?y.
+        ?pt c:PositionPoint.sequenceNumber ?seq.
+        FILTER (!regex(?class, "Phase")).
+        FILTER (!regex(?class, "TapChanger")).
+        FILTER (!regex(?class, "Tank")).
+        FILTER (!regex(?class, "RegulatingControl")).
+        }
+        ORDER BY ?class ?name ?seq ?x ?y
+        """%self.feeder_mrid
+
+        results = self.gad.query_data(XYCOOR_QUERY)
+        bindings = results['data']['results']['bindings']
+        return bindings
+
+    def energysource_query(self):
+        SOURCEBUS_QUERY = """PREFIX r:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX c:  <http://iec.ch/TC57/CIM100#>
+        SELECT ?name ?bus ?basev ?nomv ?vmag ?vang ?r1 ?x1 ?r0 ?x0 WHERE {
+         ?s r:type c:EnergySource.
+        # feeder selection options - if all commented out, query matches all feeders
+        VALUES ?fdrid {"%s"}  # 123 bus
+         ?s c:Equipment.EquipmentContainer ?fdr.
+         ?fdr c:IdentifiedObject.mRID ?fdrid.
+         ?s c:IdentifiedObject.name ?name.
+         ?s c:ConductingEquipment.BaseVoltage ?bv.
+         ?bv c:BaseVoltage.nominalVoltage ?basev.
+         ?s c:EnergySource.nominalVoltage ?nomv. 
+         ?s c:EnergySource.voltageMagnitude ?vmag. 
+         ?s c:EnergySource.voltageAngle ?vang. 
+         ?s c:EnergySource.r ?r1. 
+         ?s c:EnergySource.x ?x1. 
+         ?s c:EnergySource.r0 ?r0. 
+         ?s c:EnergySource.x0 ?x0. 
+         ?t c:Terminal.ConductingEquipment ?s.
+         ?t c:Terminal.ConnectivityNode ?cn. 
+         ?cn c:IdentifiedObject.name ?bus
+        }
+        ORDER by ?name"""% self.feeder_mrid
+
+        results = self.gad.query_data(SOURCEBUS_QUERY)
+        bindings = results['data']['results']['bindings']
+        return bindings
 

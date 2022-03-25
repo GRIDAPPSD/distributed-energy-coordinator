@@ -4,17 +4,16 @@ Created on Sun Dec 26 10:58:46 2021
 
 @author: poud579
 """
-
-
+import os
 from area_agent import AreaCoordinator
 from service_xfmr_agent import Secondary_Agent
 from gridappsd import GridAPPSD
 from sparql import SPARQLManager
 import networkx as nx
 import numpy as np
-import json
 from operator import add
 import copy
+import json
 import matplotlib.pyplot as plt
 
 
@@ -36,24 +35,24 @@ def secondary_info(G, sourcebus, bus_info_sec, tpx_xfmr):
             bus_info_sec_agent_i[key]['pv'] = bus_info_sec[key]['pv']
             bus_info_sec_agent_i[key]['pq'] = bus_info_sec[key]['pq']
             idx += 1
-    
+
     idx = 0
     tpx_xfmr_agent_i = {}
     for key, val_bus in tpx_xfmr.items():
         if val_bus['fr_bus'] in bus_info_sec_agent_i and val_bus['to_bus'] in bus_info_sec_agent_i:
             tpx_xfmr_agent_i[key] = {}
             tpx_xfmr_agent_i[key]['idx'] = idx
-            tpx_xfmr_agent_i[key]['type']= tpx_xfmr[key]['type']
-            tpx_xfmr_agent_i[key] ['from'] = bus_info_sec_agent_i[tpx_xfmr[key]['fr_bus']]['idx']
-            tpx_xfmr_agent_i[key] ['to'] =  bus_info_sec_agent_i[tpx_xfmr[key]['to_bus']]['idx']
-            tpx_xfmr_agent_i[key] ['fr_bus'] = tpx_xfmr[key]['fr_bus']
-            tpx_xfmr_agent_i[key] ['to_bus'] =  tpx_xfmr[key]['to_bus']
+            tpx_xfmr_agent_i[key]['type'] = tpx_xfmr[key]['type']
+            tpx_xfmr_agent_i[key]['from'] = bus_info_sec_agent_i[tpx_xfmr[key]['fr_bus']]['idx']
+            tpx_xfmr_agent_i[key]['to'] = bus_info_sec_agent_i[tpx_xfmr[key]['to_bus']]['idx']
+            tpx_xfmr_agent_i[key]['fr_bus'] = tpx_xfmr[key]['fr_bus']
+            tpx_xfmr_agent_i[key]['to_bus'] = tpx_xfmr[key]['to_bus']
             if tpx_xfmr[key]['type'] == 'SPLIT_PHASE':
                 xfmr_name = key
-                tpx_xfmr_agent_i[key] ['impedance'] =  tpx_xfmr[key]['impedance']
-                tpx_xfmr_agent_i[key] ['impedance1'] = tpx_xfmr[key]['impedance1']
+                tpx_xfmr_agent_i[key]['impedance'] = tpx_xfmr[key]['impedance']
+                tpx_xfmr_agent_i[key]['impedance1'] = tpx_xfmr[key]['impedance1']
             else:
-                tpx_xfmr_agent_i[key] ['impedance'] =  tpx_xfmr[key]['impedance']
+                tpx_xfmr_agent_i[key]['impedance'] = tpx_xfmr[key]['impedance']
             # branch_sw_data_sec_agent_i[key]['zprim'] = branch_sw_data[key]['zprim']
             idx += 1
     # exit()
@@ -77,7 +76,7 @@ def area_info(G, edge, branch_sw_data, bus_info, sourcebus):
         if sourcebus not in k:
             area = k
             break
-    
+
     bus_info_area_i = {}
     idx = 0
     for key, val_bus in bus_info.items():
@@ -87,6 +86,8 @@ def area_info(G, edge, branch_sw_data, bus_info, sourcebus):
             bus_info_area_i[key]['phases'] = bus_info[key]['phases']
             bus_info_area_i[key]['nodes'] = bus_info[key]['nodes']
             bus_info_area_i[key]['injection'] = bus_info[key]['injection']
+            bus_info_area_i[key]['pv'] = bus_info[key]['pv']
+            bus_info_area_i[key]['pq'] = bus_info[key]['pq']
             idx += 1
     idx = 0
     branch_sw_data_area_i = {}
@@ -94,19 +95,21 @@ def area_info(G, edge, branch_sw_data, bus_info, sourcebus):
         if val_bus['fr_bus'] in bus_info_area_i and val_bus['to_bus'] in bus_info_area_i:
             branch_sw_data_area_i[key] = {}
             branch_sw_data_area_i[key]['idx'] = idx
-            branch_sw_data_area_i[key]['type']= branch_sw_data[key]['type']
-            branch_sw_data_area_i[key] ['from'] = bus_info_area_i[branch_sw_data[key]['fr_bus']]['idx']
-            branch_sw_data_area_i[key] ['to'] =  bus_info_area_i[branch_sw_data[key]['to_bus']]['idx']
-            branch_sw_data_area_i[key] ['fr_bus'] = branch_sw_data[key]['fr_bus']
-            branch_sw_data_area_i[key] ['to_bus'] =  branch_sw_data[key]['to_bus']
+            branch_sw_data_area_i[key]['type'] = branch_sw_data[key]['type']
+            branch_sw_data_area_i[key]['from'] = bus_info_area_i[branch_sw_data[key]['fr_bus']]['idx']
+            branch_sw_data_area_i[key]['to'] = bus_info_area_i[branch_sw_data[key]['to_bus']]['idx']
+            branch_sw_data_area_i[key]['fr_bus'] = branch_sw_data[key]['fr_bus']
+            branch_sw_data_area_i[key]['to_bus'] = branch_sw_data[key]['to_bus']
             branch_sw_data_area_i[key]['phases'] = branch_sw_data[key]['phases']
             branch_sw_data_area_i[key]['zprim'] = branch_sw_data[key]['zprim']
             idx += 1
     return branch_sw_data_area_i, bus_info_area_i
 
+
 class AgentData:
 
-    def __init__(self, ybus, cnv, node_name, energy_consumer, der_pv, lines, pxfmrs, txfmrs, txfmrs_r, txfmrs_z, switches):
+    def __init__(self, ybus, cnv, node_name, energy_consumer, der_pv, lines, pxfmrs, txfmrs, txfmrs_r, txfmrs_z,
+                 switches):
         self.ybus = ybus
         self.cnv = cnv
         self.energy_consumer = energy_consumer
@@ -118,42 +121,42 @@ class AgentData:
         self.der_pv = der_pv
         self.txfmrs_r = txfmrs_r
         self.txfmrs_z = txfmrs_z
-    
+
     # Extract area specific data
     def area_agent(self):
-        ybus = self.ybus 
-        cnv = self.cnv 
-        energy_consumer =  self.energy_consumer 
+        ybus = self.ybus
+        cnv = self.cnv
+        energy_consumer = self.energy_consumer
         lines = self.lines
-        pxfmrs = self.pxfmrs 
-        txfmrs = self.txfmrs 
+        pxfmrs = self.pxfmrs
+        txfmrs = self.txfmrs
         switches = self.switches
         node_name = self.node_name
         der_pv = self.der_pv
-        G = nx.Graph() 
+        G = nx.Graph()
 
         phaseIdx = {'A': '.1', 'B': '.2', 'C': '.3', 's1\ns2': '.1.2', 's2\ns1': '.1.2'}
         pq_inj = {}
         pv_inj = {}
-        mult = 0.0
+        mult = 1.0
         for obj in energy_consumer:
             p = float(obj['p']['value'])
             q = float(obj['q']['value'])
             if obj['phases']['value'] == '':
-                pq_inj[obj['bus']['value'].upper() + '.1' ] = (complex(p, q) / 3) * mult
-                pq_inj[obj['bus']['value'].upper() + '.2' ] = (complex(p, q) / 3) * mult
-                pq_inj[obj['bus']['value'].upper() + '.3' ] = (complex(p, q) / 3) * mult
+                pq_inj[obj['bus']['value'].upper() + '.1'] = (complex(p, q) / 3) * mult
+                pq_inj[obj['bus']['value'].upper() + '.2'] = (complex(p, q) / 3) * mult
+                pq_inj[obj['bus']['value'].upper() + '.3'] = (complex(p, q) / 3) * mult
             else:
                 pq_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * mult
-        
+
         for obj in der_pv:
             p = float(obj['p']['value'])
             q = float(obj['q']['value'])
             if 's' not in obj['phases']['value']:
                 if obj['phases']['value'] == '':
-                    pv_inj[obj['bus']['value'].upper() + '.1' ] = (complex(p, q) / 3) * mult
-                    pv_inj[obj['bus']['value'].upper() + '.2' ] = (complex(p, q) / 3) * mult
-                    pv_inj[obj['bus']['value'].upper() + '.3' ] = (complex(p, q) / 3) * mult
+                    pv_inj[obj['bus']['value'].upper() + '.1'] = (complex(p, q) / 3) * mult
+                    pv_inj[obj['bus']['value'].upper() + '.2'] = (complex(p, q) / 3) * mult
+                    pv_inj[obj['bus']['value'].upper() + '.3'] = (complex(p, q) / 3) * mult
                 else:
                     pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * mult
 
@@ -176,18 +179,18 @@ class AgentData:
             node1 = items[2].strip()
             ph.append(node1)
             node = bus + '.' + node1
-            nodes.append(node_name[node]) 
+            nodes.append(node_name[node])
             node2 = items[6].strip()
             if node2 != '0':
                 ph.append(node2)
                 node = bus + '.' + node2
-                nodes.append(node_name[node]) 
-
+                nodes.append(node_name[node])
                 node3 = items[10].strip()
+
                 if node3 != '0':
                     ph.append(node3)
                     node = bus + '.' + node3
-                    nodes.append(node_name[node]) 
+                    nodes.append(node_name[node])
 
             bus_info[bus]['phases'] = ph
             bus_info[bus]['nodes'] = nodes
@@ -211,6 +214,8 @@ class AgentData:
                 pv_c = pv_inj[bus + '.3']
             sinj_nodes = [pq_a - pv_a, pq_b - pv_b, pq_c - pv_c]
             bus_info[bus]['injection'] = sinj_nodes
+            bus_info[bus]['pq'] = [pq_a, pq_b, pq_c]
+            bus_info[bus]['pv'] = [pv_a, pv_b, pv_c]
             idx += 1
 
         # Extracting branch information
@@ -225,30 +230,32 @@ class AgentData:
             line_name = obj['name']['value']
             branch_sw_data[line_name] = {}
             branch_sw_data[line_name]['idx'] = idx_line
-            branch_sw_data[line_name]['type']= 'LINE'
+            branch_sw_data[line_name]['type'] = 'LINE'
             if 's1' in obj['phases']['value']:
                 ph = [1, 2]
             else:
-                ph = [ord(letter) - 64 for letter in  obj['phases']['value']]
+                ph = [ord(letter) - 64 for letter in obj['phases']['value']]
+                if ph[-1] > 3:
+                    ph = ph[:-1]
             # print(obj['phases']['value'])
             branch_sw_data[line_name]['phases'] = ph
-            branch_sw_data[line_name] ['from'] = bus_info[obj['bus1']['value'].upper()]['idx']
-            branch_sw_data[line_name] ['to'] = bus_info[obj['bus2']['value'].upper()]['idx']
-            branch_sw_data[line_name] ['fr_bus'] = obj['bus1']['value'].upper()
-            branch_sw_data[line_name] ['to_bus'] = obj['bus2']['value'].upper()
+            branch_sw_data[line_name]['from'] = bus_info[obj['bus1']['value'].upper()]['idx']
+            branch_sw_data[line_name]['to'] = bus_info[obj['bus2']['value'].upper()]['idx']
+            branch_sw_data[line_name]['fr_bus'] = obj['bus1']['value'].upper()
+            branch_sw_data[line_name]['to_bus'] = obj['bus2']['value'].upper()
             fr_node = []
             t_node = []
             for p in ph:
                 from_node = obj['bus1']['value'].upper() + '.' + str(p)
                 to_node = obj['bus2']['value'].upper() + '.' + str(p)
-                fr_node.append(node_name[from_node]) 
-                t_node.append(node_name[to_node]) 
-            z = -1*np.linalg.inv(ybus[np.ix_(fr_node, t_node)])
+                fr_node.append(node_name[from_node])
+                t_node.append(node_name[to_node])
+            z = -1 * np.linalg.inv(ybus[np.ix_(fr_node, t_node)])
             z_prim = np.zeros((3, 3), dtype=complex)
             # Making the matrix 3 x 3 for non 3-phase line
             for p in range(len(ph)):
                 for q in range(len(ph)):
-                    z_prim[ph[p]-1][ph[q]-1] = z[p][q]
+                    z_prim[ph[p] - 1][ph[q] - 1] = z[p][q]
             # if line_name == 'l115':
             #     print(z_prim)
             #     exit()
@@ -256,7 +263,7 @@ class AgentData:
             idx_line += 1
             G.add_edge(obj['bus1']['value'].upper(), obj['bus2']['value'].upper())
             # print(branch_sw_data[line_name])
-        
+
         # Extracting the xmfr information (Power Transformer End)
         print('Extracting Transformer information')
         idx_xmfr = 0
@@ -265,22 +272,22 @@ class AgentData:
             if xmfr_name not in branch_sw_data:
                 if obj['bus']['value'].upper() not in bus_info:
                     continue
-                if pxfmrs[idx+1]['bus']['value'].upper() not in bus_info:
+                if pxfmrs[idx + 1]['bus']['value'].upper() not in bus_info:
                     continue
-                
+
                 branch_sw_data[xmfr_name] = {}
                 branch_sw_data[xmfr_name]['idx'] = idx_line + idx_xmfr + 0
-                branch_sw_data[xmfr_name]['type']= 'XFMR'
-                ph = [ord(letter) - 64 for letter in  'ABC']
+                branch_sw_data[xmfr_name]['type'] = 'XFMR'
+                ph = [ord(letter) - 64 for letter in 'ABC']
                 branch_sw_data[xmfr_name]['phases'] = ph
-                branch_sw_data[xmfr_name] ['from'] = bus_info[obj['bus']['value'].upper()]['idx']
-                branch_sw_data[xmfr_name] ['to'] = bus_info[pxfmrs[idx+1]['bus']['value'].upper()]['idx']
-                branch_sw_data[xmfr_name] ['fr_bus'] = obj['bus']['value'].upper()
-                branch_sw_data[xmfr_name] ['to_bus'] = pxfmrs[idx+1]['bus']['value'].upper()
+                branch_sw_data[xmfr_name]['from'] = bus_info[obj['bus']['value'].upper()]['idx']
+                branch_sw_data[xmfr_name]['to'] = bus_info[pxfmrs[idx + 1]['bus']['value'].upper()]['idx']
+                branch_sw_data[xmfr_name]['fr_bus'] = obj['bus']['value'].upper()
+                branch_sw_data[xmfr_name]['to_bus'] = pxfmrs[idx + 1]['bus']['value'].upper()
                 z_prim = np.zeros((3, 3), dtype=complex)
                 branch_sw_data[xmfr_name]['zprim'] = z_prim
                 idx_xmfr += 1
-                G.add_edge(obj['bus']['value'].upper(), pxfmrs[idx+1]['bus']['value'].upper())
+                G.add_edge(obj['bus']['value'].upper(), pxfmrs[idx + 1]['bus']['value'].upper())
 
         # Extracting the xmfr information (Transformer tank End)
         # ratedU = {}
@@ -296,21 +303,21 @@ class AgentData:
             if xmfr_name not in branch_sw_data:
                 if obj['bus']['value'].upper() not in bus_info:
                     continue
-                if txfmrs[idx+1]['bus']['value'].upper() not in bus_info:
+                if txfmrs[idx + 1]['bus']['value'].upper() not in bus_info:
                     continue
                 branch_sw_data[xmfr_name] = {}
                 branch_sw_data[xmfr_name]['idx'] = idx_line + idx_xmfr
-                branch_sw_data[xmfr_name]['type']= 'REG'
-                ph = [ord(letter) - 64 for letter in  'ABC']
+                branch_sw_data[xmfr_name]['type'] = 'REG'
+                ph = [ord(letter) - 64 for letter in 'ABC']
                 branch_sw_data[xmfr_name]['phases'] = ph
-                branch_sw_data[xmfr_name] ['from'] = bus_info[obj['bus']['value'].upper()]['idx']
-                branch_sw_data[xmfr_name] ['to'] = bus_info[txfmrs[idx+1]['bus']['value'].upper()]['idx']
-                branch_sw_data[xmfr_name] ['fr_bus'] = obj['bus']['value'].upper()
-                branch_sw_data[xmfr_name] ['to_bus'] = txfmrs[idx+1]['bus']['value'].upper()
+                branch_sw_data[xmfr_name]['from'] = bus_info[obj['bus']['value'].upper()]['idx']
+                branch_sw_data[xmfr_name]['to'] = bus_info[txfmrs[idx + 1]['bus']['value'].upper()]['idx']
+                branch_sw_data[xmfr_name]['fr_bus'] = obj['bus']['value'].upper()
+                branch_sw_data[xmfr_name]['to_bus'] = txfmrs[idx + 1]['bus']['value'].upper()
                 z_prim = np.zeros((3, 3), dtype=complex)
                 branch_sw_data[xmfr_name]['zprim'] = z_prim
                 idx_xmfr += 1
-                G.add_edge(obj['bus']['value'].upper(), txfmrs[idx+1]['bus']['value'].upper())
+                G.add_edge(obj['bus']['value'].upper(), txfmrs[idx + 1]['bus']['value'].upper())
             # print(branch_sw_data[xmfr_name])
 
         # Extracting the switch information
@@ -325,24 +332,24 @@ class AgentData:
             # Storing only the normally closed switch. We only work with radial network for this app.
             if obj['isopen']['value'] == 'false':
                 branch_sw_data[swt_name] = {}
-                branch_sw_data[swt_name]['idx'] = idx_line + idx_xmfr + idx_swt 
-                branch_sw_data[swt_name]['type']= 'SWITCH'
+                branch_sw_data[swt_name]['idx'] = idx_line + idx_xmfr + idx_swt
+                branch_sw_data[swt_name]['type'] = 'SWITCH'
                 if obj['phases']['value'] == '':
                     obj['phases']['value'] = 'ABC'
-                ph = [ord(letter) - 64 for letter in  obj['phases']['value']]
+                ph = [ord(letter) - 64 for letter in obj['phases']['value']]
                 branch_sw_data[swt_name]['phases'] = ph
-                branch_sw_data[swt_name] ['from'] = bus_info[obj['bus1']['value'].upper()]['idx']
-                branch_sw_data[swt_name] ['to'] = bus_info[obj['bus2']['value'].upper()]['idx']
-                branch_sw_data[swt_name] ['fr_bus'] = obj['bus1']['value'].upper()
-                branch_sw_data[swt_name] ['to_bus'] = obj['bus2']['value'].upper()
+                branch_sw_data[swt_name]['from'] = bus_info[obj['bus1']['value'].upper()]['idx']
+                branch_sw_data[swt_name]['to'] = bus_info[obj['bus2']['value'].upper()]['idx']
+                branch_sw_data[swt_name]['fr_bus'] = obj['bus1']['value'].upper()
+                branch_sw_data[swt_name]['to_bus'] = obj['bus2']['value'].upper()
                 fr_node = []
                 t_node = []
                 swt_idxs = []
                 for i, p in enumerate(ph):
                     from_node = obj['bus1']['value'].upper() + '.' + str(p)
                     to_node = obj['bus2']['value'].upper() + '.' + str(p)
-                    fr_node.append(node_name[from_node]) 
-                    t_node.append(node_name[to_node]) 
+                    fr_node.append(node_name[from_node])
+                    t_node.append(node_name[to_node])
                     swt_idxs.append([fr_node[i], t_node[i]])
 
                 swt_idxs_ph.append(swt_idxs)
@@ -353,37 +360,37 @@ class AgentData:
                     # z_prim = -1 * np.linalg.inv(ybus[np.ix_(fr_node, t_node)])
                 else:
                     sw_pos_base.append(0)
-                    nsa = np.array([-1e3+1e3j, -1e3+1e3j, -1e3+1e3j])
+                    nsa = np.array([-1e3 + 1e3j, -1e3 + 1e3j, -1e3 + 1e3j])
                     z_prim = -1 * np.linalg.inv(np.diag(-nsa))
                 branch_sw_data[swt_name]['zprim'] = z_prim
-                message = dict(swt_name = swt_name,   
-                                sw_id = idx_swt,                     
-                                bus1 = obj['bus1']['value'].upper(),
-                                bus2 = obj['bus2']['value'].upper(),
-                                phases = obj['phases']['value'],
-                                status = sw_pos[obj['isopen']['value']])
+                message = dict(swt_name=swt_name,
+                               sw_id=idx_swt,
+                               bus1=obj['bus1']['value'].upper(),
+                               bus2=obj['bus2']['value'].upper(),
+                               phases=obj['phases']['value'],
+                               status=sw_pos[obj['isopen']['value']])
                 idx_swt += 1
-                switch_info.append(message)  
-            # print(obj['bus1']['value'].upper(), obj['bus2']['value'].upper())
+                switch_info.append(message)
+                # print(obj['bus1']['value'].upper(), obj['bus2']['value'].upper())
             G.add_edge(obj['bus1']['value'].upper(), obj['bus2']['value'].upper())
-        
+
         return bus_info, branch_sw_data, G
-        
+
     # Extract secondary specific data
     def secondary_agent(self):
-        ybus = self.ybus 
-        cnv = self.cnv 
-        energy_consumer =  self.energy_consumer 
+        ybus = self.ybus
+        cnv = self.cnv
+        energy_consumer = self.energy_consumer
         lines = self.lines
-        pxfmrs = self.pxfmrs 
-        txfmrs = self.txfmrs 
+        pxfmrs = self.pxfmrs
+        txfmrs = self.txfmrs
         switches = self.switches
         node_name = self.node_name
         der_pv = self.der_pv
         txfmrs_r = self.txfmrs_r
         txfmrs_z = self.txfmrs_z
 
-        G = nx.Graph() 
+        G = nx.Graph()
         phaseIdx = {'A': '.1', 'B': '.2', 'C': '.3', 's1\ns2': '.1.2', 's2\ns1': '.1.2'}
         pq_inj = {}
         mult = 0.25
@@ -392,9 +399,9 @@ class AgentData:
             p = float(obj['p']['value'])
             q = float(obj['q']['value'])
             if obj['phases']['value'] == '':
-                pq_inj[obj['bus']['value'].upper() + '.1' ] = (complex(p, q) / 3) * mult
-                pq_inj[obj['bus']['value'].upper() + '.2' ] = (complex(p, q) / 3) * mult
-                pq_inj[obj['bus']['value'].upper() + '.3' ] = (complex(p, q) / 3) * mult
+                pq_inj[obj['bus']['value'].upper() + '.1'] = (complex(p, q) / 3) * mult
+                pq_inj[obj['bus']['value'].upper() + '.2'] = (complex(p, q) / 3) * mult
+                pq_inj[obj['bus']['value'].upper() + '.3'] = (complex(p, q) / 3) * mult
             else:
                 pq_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * mult
                 pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * 0
@@ -438,7 +445,7 @@ class AgentData:
         for obj in txfmrs_z:
             xfmr_name = obj['xfmr_name']['value']
             enum = int(obj['enum']['value'])
-            #gnum = int(obj['gnum']['value'])
+            # gnum = int(obj['gnum']['value'])
             if xfmr_name not in Xohm:
                 Xohm[xfmr_name] = {}
             Xohm[xfmr_name][enum] = float(obj['leakage_z']['value'])
@@ -462,18 +469,18 @@ class AgentData:
                 node1 = items[2].strip()
                 ph.append(node1)
                 node = bus + '.' + node1
-                nodes.append(node_name[node]) 
+                nodes.append(node_name[node])
                 node2 = items[6].strip()
                 if node2 != '0':
                     ph.append(node2)
                     node = bus + '.' + node2
-                    nodes.append(node_name[node]) 
+                    nodes.append(node_name[node])
 
                     node3 = items[10].strip()
                     if node3 != '0':
                         ph.append(node3)
                         node = bus + '.' + node3
-                        nodes.append(node_name[node]) 
+                        nodes.append(node_name[node])
 
                 bus_info[bus]['phases'] = ph
                 bus_info[bus]['nodes'] = nodes
@@ -502,25 +509,25 @@ class AgentData:
                     line_name = obj['name']['value']
                     tpx_xfmr[line_name] = {}
                     tpx_xfmr[line_name]['idx'] = idx_line
-                    tpx_xfmr[line_name]['type']= 'LINE'
+                    tpx_xfmr[line_name]['type'] = 'LINE'
                     ph = [1, 2]
-                    tpx_xfmr[line_name] ['from'] = bus_info[obj['bus1']['value'].upper()]['idx']
-                    tpx_xfmr[line_name] ['to'] = bus_info[obj['bus2']['value'].upper()]['idx']
-                    tpx_xfmr[line_name] ['fr_bus'] = bus1
-                    tpx_xfmr[line_name] ['to_bus'] = bus2
+                    tpx_xfmr[line_name]['from'] = bus_info[obj['bus1']['value'].upper()]['idx']
+                    tpx_xfmr[line_name]['to'] = bus_info[obj['bus2']['value'].upper()]['idx']
+                    tpx_xfmr[line_name]['fr_bus'] = bus1
+                    tpx_xfmr[line_name]['to_bus'] = bus2
                     fr_node = []
                     t_node = []
                     for p in ph:
                         from_node = obj['bus1']['value'].upper() + '.' + str(p)
                         to_node = obj['bus2']['value'].upper() + '.' + str(p)
-                        fr_node.append(node_name[from_node]) 
-                        t_node.append(node_name[to_node]) 
-                    z = -1*np.linalg.inv(ybus[np.ix_(fr_node, t_node)])
+                        fr_node.append(node_name[from_node])
+                        t_node.append(node_name[to_node])
+                    z = -1 * np.linalg.inv(ybus[np.ix_(fr_node, t_node)])
                     z_prim = np.zeros((2, 2), dtype=complex)
                     # Making the matrix 2 x 2 for triplex line
                     for p in range(len(ph)):
                         for q in range(len(ph)):
-                            z_prim[ph[p]-1][ph[q]-1] = z[p][q]
+                            z_prim[ph[p] - 1][ph[q] - 1] = z[p][q]
                     # tpx_xfmr[line_name]['impedance'] = [0.0042+0.0023j]
                     tpx_xfmr[line_name]['impedance'] = [z[0][0]]
                     idx_line += 1
@@ -544,51 +551,54 @@ class AgentData:
             xmfr_name = obj['xfmr_name']['value']
             if xmfr_name not in tpx_xfmr:
                 # Store only if the transformer belong to secondary agent. 
-                if obj['bus']['value'].upper() in bus_info and txfmrs[idx+1]['bus']['value'].upper() in bus_info:
+                if obj['bus']['value'].upper() in bus_info and txfmrs[idx + 1]['bus']['value'].upper() in bus_info:
                     tpx_xfmr[xmfr_name] = {}
                     tpx_xfmr[xmfr_name]['idx'] = idx_line + idx_xmfr
-                    tpx_xfmr[xmfr_name]['type']= 'SPLIT_PHASE'
-                    tpx_xfmr[xmfr_name] ['from'] = bus_info[obj['bus']['value'].upper()]['idx']
-                    tpx_xfmr[xmfr_name] ['to'] = bus_info[txfmrs[idx+1]['bus']['value'].upper()]['idx']
-                    tpx_xfmr[xmfr_name] ['fr_bus'] = obj['bus']['value'].upper()
-                    tpx_xfmr[xmfr_name] ['to_bus'] = txfmrs[idx+1]['bus']['value'].upper()
+                    tpx_xfmr[xmfr_name]['type'] = 'SPLIT_PHASE'
+                    tpx_xfmr[xmfr_name]['from'] = bus_info[obj['bus']['value'].upper()]['idx']
+                    tpx_xfmr[xmfr_name]['to'] = bus_info[txfmrs[idx + 1]['bus']['value'].upper()]['idx']
+                    tpx_xfmr[xmfr_name]['fr_bus'] = obj['bus']['value'].upper()
+                    tpx_xfmr[xmfr_name]['to_bus'] = txfmrs[idx + 1]['bus']['value'].upper()
 
                     # Extracting primary and secondary impedances for split phase transformer
                     zbase1 = RatedU[xmfr_name][1] ** 2 / RatedS[xmfr_name][1]
                     zbase2 = RatedU[xmfr_name][2] ** 2 / RatedS[xmfr_name][2]
-                    r1 = Rohm[xmfr_name][1]/zbase1
-                    r2 = Rohm[xmfr_name][2]/zbase2
-                    r3 = Rohm[xmfr_name][3]/zbase2
-                    x12 = Xohm[xmfr_name][1]/zbase1
-                    x13 = Xohm[xmfr_name][1]/zbase1
-                    x23 = Xohm[xmfr_name][2]/zbase2
+                    r1 = Rohm[xmfr_name][1] / zbase1
+                    r2 = Rohm[xmfr_name][2] / zbase2
+                    r3 = Rohm[xmfr_name][3] / zbase2
+                    x12 = Xohm[xmfr_name][1] / zbase1
+                    x13 = Xohm[xmfr_name][1] / zbase1
+                    x23 = Xohm[xmfr_name][2] / zbase2
                     x1 = 0.5 * (x12 + x13 - x23)
                     x2 = 0.5 * (x12 + x23 - x13)
                     x3 = 0.5 * (x13 + x23 - x12)
                     impedance = [complex(r1, x1)]
                     impedance1 = [complex(r2, x2)]
                     impedance2 = [complex(r3, x3)]
-                    tpx_xfmr[xmfr_name] ['impedance'] =  impedance
-                    tpx_xfmr[xmfr_name] ['impedance1'] = impedance1
+                    tpx_xfmr[xmfr_name]['impedance'] = impedance
+                    tpx_xfmr[xmfr_name]['impedance1'] = impedance1
                     idx_xmfr += 1
-                    G.add_edge(obj['bus']['value'].upper(), txfmrs[idx+1]['bus']['value'].upper())
+                    G.add_edge(obj['bus']['value'].upper(), txfmrs[idx + 1]['bus']['value'].upper())
 
-            # print(branch_sw_data[xmfr_name])
         return bus_info, tpx_xfmr, G, service_xfmr_bus, RatedS
 
 
 def _main():
-    
+    os.environ['GRIDAPPSD_USER'] = "app_user"
+    os.environ['GRIDAPPSD_PASSWORD'] = "1234App"
     gapps = GridAPPSD()
     simulation_id = '725830594'
     feeder_mrid = "_C1C3E687-6FFD-C753-582B-632A27E28507"
-    # feeder_mrid = "_E407CBB6-8C8D-9BC9-589C-AB83FBF0826D"
+    feeder_mrid = "_E407CBB6-8C8D-9BC9-589C-AB83FBF0826D"
+    # feeder_mrid = "_5B816B93-7A5F-B64C-8460-47C17D6E4B0F"
+    # feeder_mrid = "_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
     feeder_mrid = "_59AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
+    # feeder_mrid = "_AAE94E4A-2465-6F5E-37B1-3E72183A4E44"
     model_api_topic = "goss.gridappsd.process.request.data.powergridmodel"
 
     # Query Grid Data
     print('Querying grid data \n')
-    sparql_mgr = sparql_mgr = SPARQLManager(gapps, feeder_mrid, model_api_topic, simulation_id)
+    sparql_mgr = SPARQLManager(gapps, feeder_mrid, model_api_topic, simulation_id)
     ysparse, nodelist = sparql_mgr.ybus_export()
     energy_consumer = sparql_mgr.query_energyconsumer_lf()
     der_pv = sparql_mgr.query_photovoltaic()
@@ -598,111 +608,101 @@ def _main():
     switches = sparql_mgr.SwitchingEquipment_switch_names()
     txfmrs_r = sparql_mgr.TransformerTank_xfmr_r()
     txfmrs_z = sparql_mgr.TransformerTank_xfmr_z()
-    
+    sourcebus = sparql_mgr.energysource_query()
+
     # Node list into dictionary
     node_name = {}
     for idx, obj in enumerate(nodelist):
         node_name[obj.strip('\"')] = idx
     cnv = sparql_mgr.vnom_export()
 
-    N = len(node_name)    
+    N = len(node_name)
     ybus = np.zeros((N, N), dtype=complex)
     for obj in ysparse:
         items = obj.split(',')
-        if items[0] == 'Row': # skip header line
+        if items[0] == 'Row':  # skip header line
             continue
-        ybus[int(items[0])-1] [int(items[1])-1] = ybus[int(items[1])-1] [int(items[0])-1] = complex(float(items[2]), float(items[3]))
-    
-    print('Extracting agents data')
-    agent_input = AgentData(ybus, cnv, node_name, energy_consumer, der_pv, lines, pxfmrs, txfmrs, txfmrs_r, txfmrs_z, switches)
+        ybus[int(items[0]) - 1][int(items[1]) - 1] = ybus[int(items[1]) - 1][int(items[0]) - 1] = complex(
+            float(items[2]), float(items[3]))
 
-    # Extracting area agent on 4.16 kv level from the grid data
+    print('Extracting agent-specific data \n')
+    agent_input = AgentData(ybus, cnv, node_name, energy_consumer, der_pv, lines, pxfmrs, txfmrs, txfmrs_r, txfmrs_z,
+                            switches)
+
+    # Extracting area agent (network model other than service level) from the grid data
     bus_info, branch_sw_data, G = agent_input.area_agent()
     bus_info_inj = copy.deepcopy(bus_info)
 
-    # Extracting secondary agents data from the grid data
+    # Extracting secondary agents' data from the grid data
     bus_info_sec, tpx_xfmr, G_sec, service_xfmr_bus, RatedS = agent_input.secondary_agent()
 
-    # Starting the iteration and message exchange
-    count = 0
+    # If no secondary network exists, no need to run the optimization
+    if len(service_xfmr_bus) == 0:
+        print('No secondary network in the feeder model. Terminating without optimization')
+        exit()
+
     # Initialize the voltage for service transformer to be 1.0 pu
     bus_voltage = {}
-    alpha_avg = {}
-    lamda = {}
     alpha_store = {}
+    bus_voltage_plot = {}
+    xfmr_bus = []
     for agent_bus in service_xfmr_bus:
+        xfmr_bus.append(agent_bus)
         alpha_store[agent_bus] = {}
         bus_voltage[agent_bus] = {}
         bus_voltage[agent_bus]['A'] = [1.04]
         bus_voltage[agent_bus]['B'] = [1.04]
         bus_voltage[agent_bus]['C'] = [1.04]
-        alpha_avg[agent_bus] = 0.0
-        lamda[agent_bus] = (1/80) * np.ones(len(service_xfmr_bus)-1)
-    
-    # alpha_avg_A = alpha_avg_B = alpha_avg_C = 1
-    # alpha_avg = {'A': alpha_avg_A, 'B': alpha_avg_B, 'C': alpha_avg_C} 
+        bus_voltage_plot[agent_bus] = []
 
-    # Criteria for convergence
-    # mu1 = 15 / len(service_xfmr_bus)
-    # mu2 = 30 / len(service_xfmr_bus)
-    # mu3 = 15 / len(service_xfmr_bus)
-    mu1 = 10 * 3 / len(service_xfmr_bus)
-    mu2 = 5 * 3 / len(service_xfmr_bus)
-    mu3 = 5 * 3 / len(service_xfmr_bus)
-    linear_term = []
-    # plot_alpha = {}
-    while (1):
+    # Starting the iteration and message exchange
+    count = 0
+    iter = 30
+    error = 1
+    s_inj = []
+    while 1:
         ########################### SECONDARY AGENTS #################################
         # Extract the inputs required for each secondary agents
         # Store the equivalent injection to pass into area agent
-        alpha_agent = []
-        alpha_agent_A = []
-        alpha_agent_B = []
-        alpha_agent_C = []
         message_injection = {}
+        err = [0]
+        print("\nInvoking the service transformer agents. Iteration count = ", count)
         for agent_bus in service_xfmr_bus:
             # Extracting a single agent data from secondary agent data
-            # agent_bus = '112'
             bus_info_sec_agent_i, tpx_xfmr_agent_i, xfmr_name = secondary_info(G_sec, agent_bus, bus_info_sec, tpx_xfmr)
             ratedS = RatedS[xfmr_name][1]
-
             # Invoke optimization with secondary agent location and indices
             sec_i_agent = Secondary_Agent()
             agent_bus_idx = bus_info_sec_agent_i[agent_bus]['idx']
             phase = service_xfmr_bus[agent_bus]['phase']
-
             # Source bus is a transformer primary.
-            vsrc = [sum(bus_voltage[agent_bus][phase])/len(bus_voltage[agent_bus][phase])]
-            # sec_inj, alpha, sec_bus_voltage = \
-            # sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx, \
-            # vsrc, service_xfmr_bus, ratedS, alpha_avg[phase], mu, zeta, gamma, lamda, service_xfmr_bus)  
-            # vsrc = [1.0468433024258965]
+            # Trying different moving average to avoid oscillation in PCC
+            guess = 5
+            if count < guess:
+                vsrc = [sum(bus_voltage[agent_bus][phase]) / len(bus_voltage[agent_bus][phase])]
+            else:
+                vsrc = [sum(bus_voltage[agent_bus][phase][-(guess-1):]) / len(bus_voltage[agent_bus][phase][-(guess-1):])]
             # Invoking the optimization
-            sec_inj, alpha, sec_bus_voltage, lamda, obj_linear = \
-            sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx, \
-            vsrc, service_xfmr_bus, ratedS, alpha_avg, mu1, mu2, mu3, lamda)  
+            sec_inj, alpha, sec_bus_voltage = \
+                sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx,
+                                       vsrc, service_xfmr_bus, ratedS)
             message_injection[agent_bus] = sec_inj
-            # if count > 1:
-            #     exit()
-            # print("Solving: ", count)
-            # exit()
-            # exit()
-            # alpha_agent.append(alpha)
-            # if phase == 'A':
-            #     alpha_agent_A.append(alpha)
-            # elif phase == 'B':
-            #     alpha_agent_B.append(alpha)
-            # else:
-            #     alpha_agent_C.append(alpha)
-
             alpha_store[agent_bus][count] = alpha
-        linear_term.append(obj_linear)
-        ########################### COORDINATING AGENT ###############################
-        # plot_alpha.append(alpha)
-        for k in message_injection:
-            bus_info[k]['injection'] = list(map(add, message_injection[k], bus_info_inj[k]['injection']))
-            alpha_avg[k] = alpha_store[k][count]
+            if count >= 1:
+                err.append(abs(alpha_store[agent_bus][count] - alpha_store[agent_bus][count - 1]))
+        if count >= 1:
+            error = max(err)
 
+        ########################### COORDINATING AGENT ###############################
+        for k in message_injection:
+            # bus_info[k]['injection'] = list(map(add, message_injection[k], bus_info_inj[k]['injection']))
+            bus_info[k]['injection'] = message_injection[k]
+            # print(k, bus_info[k]['injection'])
+        s = 0
+        for k in bus_info:
+            # print(k, bus_info[k]['injection'])
+            s += sum(bus_info[k]['injection']) / 1000.0
+        s_inj.append(s)
         # Finding the switch delimited areas and give the area specific information to agents    
         # edge = [['18', '135'], ['151', '300_OPEN']]
         # edge = [['60', '160'], ['97', '197'], ['54', '94_OPEN']]
@@ -710,13 +710,13 @@ def _main():
         # sourcebus = '150'
         # branch_sw_data_area_i, bus_info_area_i = area_info(G, edge, branch_sw_data, bus_info, sourcebus)
 
-        print('\n Invoke area agent')
+        print('\nInvoke area agent')
         area_i_agent = AreaCoordinator()
-        agent_bus = '150'
-        agent_bus_idx = bus_info['150R']['idx']
+        agent_bus = sourcebus[0]['bus']['value'].upper()
+        agent_bus_idx = bus_info[agent_bus]['idx']
         vsrc = [1.04, 1.04, 1.04]
-        bus_voltage_area = area_i_agent.alpha_area(branch_sw_data,  bus_info, agent_bus, agent_bus_idx, vsrc)
-        
+        bus_voltage_area = area_i_agent.alpha_area(branch_sw_data, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus)
+        # Extract voltage at buses from the area agent optimization
         for k in bus_voltage_area:
             try:
                 bus_voltage[k]['A'].append(bus_voltage_area[k]['A'])
@@ -724,38 +724,25 @@ def _main():
                 bus_voltage[k]['C'].append(bus_voltage_area[k]['C'])
             except:
                 continue
-        
-        # for k in bus_voltage:
-        #     print(k, bus_voltage[k])
-
-        # Fine new alpha_average based on the degree of decentralization
-        # 1. Same across a service xfmr area
-        # 2. Same across a feeder
-        # 3. Same across a neighborhood. 
-        # alpha_avg = sum(alpha_agent)/len(alpha_agent)
-        # alpha_avg_A = sum(alpha_agent_A)/len(alpha_agent_A)
-        # alpha_avg_B = sum(alpha_agent_B)/len(alpha_agent_B)
-        # alpha_avg_C = sum(alpha_agent_C)/len(alpha_agent_C)
-        # alpha_avg_A = alpha_avg_B = alpha_avg_C = 1
-        # alpha_avg = {'A': alpha_avg_A, 'B': alpha_avg_B, 'C': alpha_avg_C} 
 
         count += 1
-        if count > 30:
+        # Check number of iterations and maximum error in alpha convergence
+        if count >= iter or error < 0.001:
+        # if count >= iter:
+            # exit()
             phaseA = []
             phaseB = []
             phaseC = []
             for k in bus_voltage_area:
                 if bus_voltage_area[k]['A'] > 0.5:
-                    phaseA.append(bus_voltage_area[k]['A']) 
+                    phaseA.append(bus_voltage_area[k]['A'])
                 if bus_voltage_area[k]['B'] > 0.5:
-                    phaseB.append(bus_voltage_area[k]['B']) 
+                    phaseB.append(bus_voltage_area[k]['B'])
                 if bus_voltage_area[k]['C'] > 0.5:
-                    phaseC.append(bus_voltage_area[k]['C']) 
-            # pv_curr = []
-            # for a in alpha_store:
-            #     # print(a, alpha_store[a]['alpha'], message_injection[a])
-            #     pv_curr.append(-1 * alpha_store[a]['alpha'] * sum(message_injection[a]).real)
+                    phaseC.append(bus_voltage_area[k]['C'])
             break
+
+    # Plot the voltage after the convergence
     plt.plot(phaseA)
     plt.plot(phaseB)
     plt.plot(phaseC)
@@ -764,21 +751,37 @@ def _main():
     plt.legend(['Phase A', 'Phase B', 'Phase C'])
     plt.grid()
     plt.show()
-    
+
+    # Plot individual alphas for service XFMRs after the convergence
     for agent_bus in service_xfmr_bus:
         alpha = []
-        for k in range(30):
+        for k in range(count):
             alpha.append(alpha_store[agent_bus][k])
-        plt.plot(alpha)
-    
-    # plt.plot(plot_alpha)
-    plt.xlabel('Iter')
+        plt.plot(alpha[-(count-1):])
+        # print(agent_bus, alpha)
+
+    plt.xlabel('Iterations')
     plt.ylabel('PV power curtailment factor (alpha)')
-    # plt.grid()
+    plt.grid()
     plt.show()
 
-    plt.plot(linear_term)
+    # plot the voltage convergence as well
+    for agent_bus in service_xfmr_bus:
+        plt_v = len(bus_voltage[agent_bus]['A'])
+        # plt.plot(bus_voltage[agent_bus]['A'][-(plt_v-1):])
+        # plt.plot(bus_voltage[agent_bus]['B'][-(plt_v-1):])
+        plt.plot(bus_voltage[agent_bus]['A'][-(plt_v-1):])
+    plt.xlabel('Iterations')
+    plt.ylabel('PCC Voltages for service transformers (p.u.)')
+    plt.grid()
     plt.show()
+
+    plt.plot(s_inj)
+    plt.xlabel('Iterations')
+    plt.ylabel('Total injections from service transformers (kW)')
+    plt.grid()
+    plt.show()
+
 
 if __name__ == '__main__':
     _main()
