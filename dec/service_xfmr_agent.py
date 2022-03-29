@@ -20,7 +20,7 @@ class Secondary_Agent(object):
         self.name = 'area'
 
     # Optimization to regulate the voltage
-    def alpha_area(self, xfmr_tpx, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus, ratedS):
+    def alpha_area(self, xfmr_tpx, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus, xfmr_phase, ratedS):
 
         # Forming the optimization variables
         nbranch = len(xfmr_tpx)
@@ -226,14 +226,16 @@ class Secondary_Agent(object):
         if len(pq_index) < 2:
             pq_inj = x.value[nbus * 3 + pq_index[0]] * mul * 1000 + 1j * x.value[
                 nbus * 3 + nbranch + pq_index[0]] * mul * 1000
-            if service_xfmr_bus[agent_bus]['phase'] == 'A':
+            if xfmr_phase == 'A':
                 sec_inj = [pq_inj, complex(0, 0), complex(0, 0)]
-            elif service_xfmr_bus[agent_bus]['phase'] == 'B':
+            elif xfmr_phase == 'B':
                 sec_inj = [complex(0, 0), pq_inj, complex(0, 0)]
             else:
                 sec_inj = [complex(0, 0), complex(0, 0), pq_inj]
         else:
             # if len(pq_index) is > 2, we hardcode for a bus which has three split phase transformers connected to it.
+            print(service_xfmr_bus[agent_bus]['phase'])
+            print(pq_index)
             pq_inj_A = x.value[nbus * 3 + pq_index[0]] * mul * 1000 + 1j * x.value[
                 nbus * 3 + nbranch + pq_index[0]] * mul * 1000
             pq_inj_B = x.value[nbus * 3 + pq_index[1]] * mul * 1000 + 1j * x.value[

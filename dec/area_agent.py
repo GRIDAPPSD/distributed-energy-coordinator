@@ -223,7 +223,7 @@ class AreaCoordinator(object):
         # Constraint 3: 0.95^2 <= V <= 1.05^2 (For those nodes where voltage constraint exist)
         # print("Formulating voltage limit constraints")
         v_idxs = list(set(v_lim))
-        # For now, keep it 1.2 as it is only supplying voltages to service xfmr agent based on BFM
+        # TODO: Does the vmin make sense here?
         vmax = 1.05
         vmin = 0.95
         # print(v_idxs)
@@ -260,6 +260,10 @@ class AreaCoordinator(object):
                           [G @ x <= h,
                           A @ x == b])
         prob.solve(solver=cp.ECOS, verbose=False, max_iters=1000, abstol=1e-4)
+        # print(prob.status)
+        if prob.status == 'infeasible':
+            print("Check for limits. Power flow didn't converge")
+            return 0
 
         # Print result.
         # print("\nThe optimal value is", (prob.value))

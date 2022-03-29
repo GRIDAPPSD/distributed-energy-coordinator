@@ -231,10 +231,12 @@ class AgentData:
             branch_sw_data[line_name] = {}
             branch_sw_data[line_name]['idx'] = idx_line
             branch_sw_data[line_name]['type'] = 'LINE'
+            if obj['phases']['value'] == '':
+                obj['phases']['value'] = 'ABC'
             if 's1' in obj['phases']['value']:
                 ph = [1, 2]
             else:
-                ph = [ord(letter) - 64 for letter in obj['phases']['value']]
+                ph = [ord(letter) - 64 for letter in obj['phases']['value'] if letter != 'N']
                 if ph[-1] > 3:
                     ph = ph[:-1]
             # print(obj['phases']['value'])
@@ -410,22 +412,34 @@ class AgentData:
             p = float(obj['p']['value'])
             q = float(obj['q']['value'])
             if 's' in obj['phases']['value']:
-                pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * 1.2
+                pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * 1.0
 
         Bus = {}
         service_xfmr_bus = {}
+        xfmr_buses = []
+        phases = []
         for obj in txfmrs:
             xfmr_name = obj['xfmr_name']['value']
             enum = int(obj['end_number']['value'])
-            # phase = obj['phase']['value']
             if xfmr_name not in Bus:
                 Bus[xfmr_name] = {}
             Bus[xfmr_name][enum] = obj['bus']['value']
             if enum == 1:
                 phase = obj['phase']['value']
-            if enum == 3 and Bus[xfmr_name][1].upper() not in service_xfmr_bus:
-                service_xfmr_bus[Bus[xfmr_name][1].upper()] = {}
-                service_xfmr_bus[Bus[xfmr_name][1].upper()]['phase'] = phase
+            if enum == 3:
+                xfmr_buses.append(Bus[xfmr_name][1].upper())
+                phases.append(phase)
+
+        # Need to store phase information of service transformer bus.
+        # Note that multiple service transformers could be connected to same bus in different phase
+        for bus in xfmr_buses:
+            if bus not in service_xfmr_bus:
+                ph_idx = [i for i, val in enumerate(xfmr_buses) if val == bus]
+                phase = []
+                for p in ph_idx:
+                    phase.append(phases[p])
+                service_xfmr_bus[bus] = {}
+                service_xfmr_bus[bus]['phase'] = phase
 
         RatedS = {}
         RatedU = {}
@@ -452,7 +466,6 @@ class AgentData:
 
         # Extracting bus information
         s = 0
-        print('Extracting bus information')
         bus_info = {}
         idx = 0
         for obj in cnv:
@@ -499,7 +512,6 @@ class AgentData:
                 idx += 1
 
         # Extracting branch information
-        print('Extracting branch information')
         tpx_xfmr = {}
         idx_line = 0
         for obj in lines:
@@ -555,6 +567,7 @@ class AgentData:
                     tpx_xfmr[xmfr_name] = {}
                     tpx_xfmr[xmfr_name]['idx'] = idx_line + idx_xmfr
                     tpx_xfmr[xmfr_name]['type'] = 'SPLIT_PHASE'
+                    tpx_xfmr[xmfr_name]['phase'] = obj['phase']['value']
                     tpx_xfmr[xmfr_name]['from'] = bus_info[obj['bus']['value'].upper()]['idx']
                     tpx_xfmr[xmfr_name]['to'] = bus_info[txfmrs[idx + 1]['bus']['value'].upper()]['idx']
                     tpx_xfmr[xmfr_name]['fr_bus'] = obj['bus']['value'].upper()
@@ -588,12 +601,12 @@ def _main():
     os.environ['GRIDAPPSD_PASSWORD'] = "1234App"
     gapps = GridAPPSD()
     simulation_id = '725830594'
-    feeder_mrid = "_C1C3E687-6FFD-C753-582B-632A27E28507"
-    feeder_mrid = "_E407CBB6-8C8D-9BC9-589C-AB83FBF0826D"
-    # feeder_mrid = "_5B816B93-7A5F-B64C-8460-47C17D6E4B0F"
-    # feeder_mrid = "_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
-    feeder_mrid = "_59AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
-    # feeder_mrid = "_AAE94E4A-2465-6F5E-37B1-3E72183A4E44"
+    # feeder_mrid = "_C1C3E687-6FFD-C753-582B-632A27E28507" # IEEE 123 Original
+    # feeder_mrid = "_E407CBB6-8C8D-9BC9-589C-AB83FBF0826D" # IEEE 123 PV- NREL
+    # feeder_mrid = "_5B816B93-7A5F-B64C-8460-47C17D6E4B0F" # IEEE 13 Assets
+    # feeder_mrid = "_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62" # IEEE 13 Node ckt (CDPSM)
+    feeder_mrid = "_59AD8E07-3BF9-A4E2-CB8F-C3722F837B62" # IEEE 123-- New model
+    # feeder_mrid = "_AAE94E4A-2465-6F5E-37B1-3E72183A4E44" # IEEE 9500
     model_api_topic = "goss.gridappsd.process.request.data.powergridmodel"
 
     # Query Grid Data
@@ -636,12 +649,7 @@ def _main():
     # Extracting secondary agents' data from the grid data
     bus_info_sec, tpx_xfmr, G_sec, service_xfmr_bus, RatedS = agent_input.secondary_agent()
 
-    # If no secondary network exists, no need to run the optimization
-    if len(service_xfmr_bus) == 0:
-        print('No secondary network in the feeder model. Terminating without optimization')
-        exit()
-
-    # Initialize the voltage for service transformer to be 1.0 pu
+    # Initialize the voltage for service transformer to be 1.04 pu
     bus_voltage = {}
     alpha_store = {}
     bus_voltage_plot = {}
@@ -668,39 +676,46 @@ def _main():
         err = [0]
         print("\nInvoking the service transformer agents. Iteration count = ", count)
         for agent_bus in service_xfmr_bus:
+            message_injection[agent_bus] = [0j, 0j, 0j]
             # Extracting a single agent data from secondary agent data
-            bus_info_sec_agent_i, tpx_xfmr_agent_i, xfmr_name = secondary_info(G_sec, agent_bus, bus_info_sec, tpx_xfmr)
-            ratedS = RatedS[xfmr_name][1]
-            # Invoke optimization with secondary agent location and indices
-            sec_i_agent = Secondary_Agent()
-            agent_bus_idx = bus_info_sec_agent_i[agent_bus]['idx']
-            phase = service_xfmr_bus[agent_bus]['phase']
-            # Source bus is a transformer primary.
-            # Trying different moving average to avoid oscillation in PCC
-            guess = 5
-            if count < guess:
-                vsrc = [sum(bus_voltage[agent_bus][phase]) / len(bus_voltage[agent_bus][phase])]
-            else:
-                vsrc = [sum(bus_voltage[agent_bus][phase][-(guess-1):]) / len(bus_voltage[agent_bus][phase][-(guess-1):])]
-            # Invoking the optimization
-            sec_inj, alpha, sec_bus_voltage = \
-                sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx,
-                                       vsrc, service_xfmr_bus, ratedS)
-            message_injection[agent_bus] = sec_inj
-            alpha_store[agent_bus][count] = alpha
+            for p in service_xfmr_bus[agent_bus]['phase']:
+                # If there are multiple service transformers in a bus, we need to separate them
+                G_sec_p = copy.deepcopy(G_sec)
+                if len(service_xfmr_bus[agent_bus]['phase']) > 1:
+                    for e in tpx_xfmr:
+                        if tpx_xfmr[e]['type'] == 'SPLIT_PHASE' and tpx_xfmr[e]['phase'] != p:
+                            G_sec_p.remove_edge(tpx_xfmr[e]['fr_bus'], tpx_xfmr[e]['to_bus'])
+
+                bus_info_sec_agent_i, tpx_xfmr_agent_i, xfmr_name = secondary_info(G_sec_p, agent_bus, bus_info_sec, tpx_xfmr)
+                ratedS = RatedS[xfmr_name][1]
+                # Invoke optimization with secondary agent location and indices
+                sec_i_agent = Secondary_Agent()
+                agent_bus_idx = bus_info_sec_agent_i[agent_bus]['idx']
+                # Source bus is a transformer primary.
+                # Trying different moving average to avoid oscillation in PCC
+                guess = 6
+                if count < guess:
+                    vsrc = [sum(bus_voltage[agent_bus][p]) / len(bus_voltage[agent_bus][p])]
+                else:
+                    vsrc = [sum(bus_voltage[agent_bus][p][-(guess-1):]) / len(bus_voltage[agent_bus][p][-(guess-1):])]
+                # Invoking the optimization
+                sec_inj, alpha, sec_bus_voltage = \
+                    sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx,
+                                           vsrc, service_xfmr_bus, p, ratedS)
+                message_injection[agent_bus] = np.add(message_injection[agent_bus], sec_inj).tolist()
+                alpha_store[agent_bus][count] = alpha
             if count >= 1:
                 err.append(abs(alpha_store[agent_bus][count] - alpha_store[agent_bus][count - 1]))
+
         if count >= 1:
             error = max(err)
 
         ########################### COORDINATING AGENT ###############################
         for k in message_injection:
-            # bus_info[k]['injection'] = list(map(add, message_injection[k], bus_info_inj[k]['injection']))
             bus_info[k]['injection'] = message_injection[k]
-            # print(k, bus_info[k]['injection'])
+
         s = 0
         for k in bus_info:
-            # print(k, bus_info[k]['injection'])
             s += sum(bus_info[k]['injection']) / 1000.0
         s_inj.append(s)
         # Finding the switch delimited areas and give the area specific information to agents    
@@ -710,12 +725,18 @@ def _main():
         # sourcebus = '150'
         # branch_sw_data_area_i, bus_info_area_i = area_info(G, edge, branch_sw_data, bus_info, sourcebus)
 
-        print('\nInvoke area agent')
+        print('\nInvoking coordinating agent')
         area_i_agent = AreaCoordinator()
         agent_bus = sourcebus[0]['bus']['value'].upper()
         agent_bus_idx = bus_info[agent_bus]['idx']
         vsrc = [1.04, 1.04, 1.04]
         bus_voltage_area = area_i_agent.alpha_area(branch_sw_data, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus)
+
+        # If no secondary network exists, no need to iterate on the optimization
+        if len(service_xfmr_bus) == 0:
+            print('No secondary network in the feeder model. Terminating without optimization')
+            exit()
+
         # Extract voltage at buses from the area agent optimization
         for k in bus_voltage_area:
             try:
@@ -728,8 +749,6 @@ def _main():
         count += 1
         # Check number of iterations and maximum error in alpha convergence
         if count >= iter or error < 0.001:
-        # if count >= iter:
-            # exit()
             phaseA = []
             phaseB = []
             phaseC = []
