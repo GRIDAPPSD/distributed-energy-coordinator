@@ -31,15 +31,17 @@ The proposed application is developed in Python and it requires the following pa
     gridappsd@f4ede7dacb7d:/gridappsd$ ./run-gridappsd.sh
     ```` 
    
-3. Once the platform is up and running, start the application using the following commands. To simulate the over-voltage scenarios in the network, it is assumed that the PV generation is at its peak and nominal loads are scaled by a constant factor; this emulates an operating condition for a particular time of the day. In GridAPPS-D simulation, such operating conditions will be extracted from the simulation output using Simulation API. Once the application is invoked, it will start the optimization, and after the convergence, voltages and curtailment factors will be plotted. A CIM difference message will be created for the PV setpoint, and it will be dumped to a JSON file inside dec/outputs directory. Individual JSON files will be created for each agent that will contain the device information and its corresponding setpoints.
+3. Once the platform is up and running, start the application using the following commands. "feeder_mrid" is the model ID that is unique to each feeder.
 
     ```` console
     user@user> cd distributed-energy-coordinator
     user@user/distributed-energy-coordinator> cd dec
     user@user/distributed-energy-coordinator/dec> python3 run_dec_both.py "feeder_mrid"
     ```` 
-   
-4. A CIM XML file of the modified IEEE 123-bus test case can be uploaded into the database using the following commands. This feeder is most suitable to demonstrate the effectiveness of the proposed approach and will be available within the Blazegraph database in the future release.
+   To simulate the over-voltage scenarios in the network, it is assumed that the PV generation is at its peak and nominal loads are scaled by a constant factor; this emulates an operating condition for a particular time of the day. In GridAPPS-D simulation, such operating conditions will be extracted from the simulation output using Simulation API. Once the application is invoked, it will start the optimization, and after the convergence, voltages and curtailment factors will be plotted. A CIM difference message will be created for the PV setpoint, and it will be dumped to a JSON file inside dec/outputs directory. Individual JSON files will be created for each agent that will contain the device information and its corresponding setpoints.
+
+
+4. The CIM XML file of the modified IEEE 123-bus test case can be ingested into the database using the following commands. This feeder is most suitable to demonstrate the effectiveness of the proposed approach and will be available within the Blazegraph database in the future release.
 
     ```` console
     user@user> cd distributed-energy-coordinator
