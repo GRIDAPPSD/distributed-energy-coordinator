@@ -39,13 +39,10 @@ The proposed application is developed in Python and it requires the following pa
     user@user/distributed-energy-coordinator/dec> python3 run_dec_both.py "feeder_mrid"
     ```` 
    
-4. A modified IEEE 123-bus test case is also provided with the application. The following commands will upload the modified IEEE 123-bus feeder into the database. This feeder has a higher number of PVs populated in the secondary model and hence is most suitable to demonstrate the effectiveness of the proposed approach. It will be available within the Blazegraph database in the future release.
+4. A CIM XML file of the modified IEEE 123-bus test case can be uploaded into the database using the following commands. This feeder is most suitable to demonstrate the effectiveness of the proposed approach and will be available within the Blazegraph database in the future release.
 
     ```` console
     user@user> cd distributed-energy-coordinator
     user@user/distributed-energy-coordinator> cd inputs/feeder
     user@user> ./go.sh
-    
-    # These commands will upload the CIM XML of the modified IEEE 123-bus in the database.
     ````
-
