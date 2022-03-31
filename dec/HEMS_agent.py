@@ -9,16 +9,26 @@ Public Functions:
 """
 
 import numpy as np
-import SPARQL_query as query_cim
+# import HEMS_query as query_cim
 import matplotlib.pyplot as plt
 from scipy import interpolate
-from pulp import *
+# from pulp import *
 import logging
 import os
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
 logger.setLevel(logging.DEBUG)
+
+### dummy function
+def get_info_from_GridAppsD(feeder_mrid, bus_name, der_dict):
+    der = []
+    try:
+        der = der_dict[bus_name.lower()]
+    except:
+        der = {}
+
+    return der
 
 class HEMS:
     """This agent determines optimial schedules for customers with batteries as DERs
@@ -27,31 +37,34 @@ class HEMS:
         TODO: update inputs for this agent
 
 """
-    def __init__(self, name, bus, optimization=False): #TODO: update inputs for class
+    def __init__(self, name, bus, feeder_mrid, load, pv, batt, optimization=False): #TODO: update inputs for class
         """Initializes the class
         """
         # TODO: update attributes of class
         # initialize from Args:
         self.name = name
-        self.feeder_mrid = "_59AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
+        self.feeder_mrid = feeder_mrid
         self.bus_name = bus
-        self.load = query_cim.get_load_info_from_bus(self.feeder_mrid, self.bus_name)
-        for load_name in self.load:
-            self.load[load_name]['set_point'] = self.load[load_name]['p']
-            self.load[load_name]['forecast'] = np.array(0)
+        # self.load = query_cim.get_load_info_from_bus(self.feeder_mrid, self.bus_name)
+        self.load = get_info_from_GridAppsD(self.feeder_mrid, self.bus_name, load)
+        if self.load:
+            self.load['set_point'] = 0.0
+            self.load['forecast'] = np.array(0)
 
-        self.PV = query_cim.get_PV_info_from_bus(self.feeder_mrid, self.bus_name)
-        for PV_name in self.PV:
-            self.PV[PV_name]['set_point'] = 0.0
-            self.PV[PV_name]['forecast'] = np.array(0)
+        # self.PV = query_cim.get_PV_info_from_bus(self.feeder_mrid, self.bus_name)
+        self.PV = get_info_from_GridAppsD(self.feeder_mrid, self.bus_name, pv)
+        if self.PV:
+            self.PV['set_point'] = 0.0
+            self.PV['forecast'] = np.array(0)
 
-        self.BESS = query_cim.get_BESS_info_from_bus(self.feeder_mrid, self.bus_name)
-        for BESS_name in self.BESS:
-            self.BESS[BESS_name]['SOC'] = self.BESS[BESS_name]['storedE']/self.BESS[BESS_name]['ratedE']
-            self.BESS[BESS_name]['set_point'] = 0.0
-            self.BESS[BESS_name]['schedule'] = np.array(0)
+        # self.BESS = query_cim.get_BESS_info_from_bus(self.feeder_mrid, self.bus_name)
+        self.BESS = get_info_from_GridAppsD(self.feeder_mrid, self.bus_name, batt)
+        if self.BESS:
+            self.BESS['SOC'] = self.BESS['storedE']/self.BESS['ratedE']
+            self.BESS['set_point'] = 0.0
+            self.BESS['schedule'] = np.array(0)
 
-        logger.info("HEMS Agent {}: Initialized".format(self.name))
+        # logger.info("HEMS Agent {}: Initialized".format(self.name))
 
     def get_price_forecast(self):
         price_file_path =  "../inputs/price.csv"
@@ -265,8 +278,8 @@ class HEMS:
 
 
 
-HEMS1 = HEMS('Agnet1', 's100c_11', optimization=True)
-HEMS1.run(action="optimize_battery", interval=1, duration=24, plot_schedules=False)
-HEMS1.run(action="write_BESS_schedules", directory='outputs')
-HEMS1.run(action="adjust_battery_dispatch")
+# HEMS1 = HEMS('Agnet1', 's100c_11', optimization=True)
+# HEMS1.run(action="optimize_battery", interval=1, duration=24, plot_schedules=False)
+# HEMS1.run(action="write_BESS_schedules", directory='outputs')
+# HEMS1.run(action="adjust_battery_dispatch")
 #HEMS('A', 's9a_9')

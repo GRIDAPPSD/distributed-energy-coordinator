@@ -5,9 +5,10 @@ Created on Sun Dec 26 10:58:46 2021
 @author: poud579
 """
 import os
+import sys
 from area_agent import AreaCoordinator
 from service_xfmr_agent import Secondary_Agent
-from gridappsd import GridAPPSD
+from gridappsd import GridAPPSD, DifferenceBuilder
 from sparql import SPARQLManager
 import networkx as nx
 import numpy as np
@@ -15,48 +16,6 @@ from operator import add
 import copy
 import json
 import matplotlib.pyplot as plt
-
-
-def secondary_info(G, sourcebus, bus_info_sec, tpx_xfmr):
-    sp_graph = list(nx.connected_components(G))
-    for k in sp_graph:
-        if sourcebus in k:
-            area = k
-            break
-    bus_info_sec_agent_i = {}
-    idx = 0
-    for key, val_bus in bus_info_sec.items():
-        if key in area:
-            bus_info_sec_agent_i[key] = {}
-            bus_info_sec_agent_i[key]['idx'] = idx
-            bus_info_sec_agent_i[key]['phase'] = bus_info_sec[key]['phases']
-            bus_info_sec_agent_i[key]['nodes'] = bus_info_sec[key]['nodes']
-            bus_info_sec_agent_i[key]['injection'] = bus_info_sec[key]['injection']
-            bus_info_sec_agent_i[key]['pv'] = bus_info_sec[key]['pv']
-            bus_info_sec_agent_i[key]['pq'] = bus_info_sec[key]['pq']
-            idx += 1
-
-    idx = 0
-    tpx_xfmr_agent_i = {}
-    for key, val_bus in tpx_xfmr.items():
-        if val_bus['fr_bus'] in bus_info_sec_agent_i and val_bus['to_bus'] in bus_info_sec_agent_i:
-            tpx_xfmr_agent_i[key] = {}
-            tpx_xfmr_agent_i[key]['idx'] = idx
-            tpx_xfmr_agent_i[key]['type'] = tpx_xfmr[key]['type']
-            tpx_xfmr_agent_i[key]['from'] = bus_info_sec_agent_i[tpx_xfmr[key]['fr_bus']]['idx']
-            tpx_xfmr_agent_i[key]['to'] = bus_info_sec_agent_i[tpx_xfmr[key]['to_bus']]['idx']
-            tpx_xfmr_agent_i[key]['fr_bus'] = tpx_xfmr[key]['fr_bus']
-            tpx_xfmr_agent_i[key]['to_bus'] = tpx_xfmr[key]['to_bus']
-            if tpx_xfmr[key]['type'] == 'SPLIT_PHASE':
-                xfmr_name = key
-                tpx_xfmr_agent_i[key]['impedance'] = tpx_xfmr[key]['impedance']
-                tpx_xfmr_agent_i[key]['impedance1'] = tpx_xfmr[key]['impedance1']
-            else:
-                tpx_xfmr_agent_i[key]['impedance'] = tpx_xfmr[key]['impedance']
-            # branch_sw_data_sec_agent_i[key]['zprim'] = branch_sw_data[key]['zprim']
-            idx += 1
-    # exit()
-    return bus_info_sec_agent_i, tpx_xfmr_agent_i, xfmr_name
 
 
 def area_info(G, edge, branch_sw_data, bus_info, sourcebus):
@@ -109,7 +68,7 @@ def area_info(G, edge, branch_sw_data, bus_info, sourcebus):
 class AgentData:
 
     def __init__(self, ybus, cnv, node_name, energy_consumer, der_pv, lines, pxfmrs, txfmrs, txfmrs_r, txfmrs_z,
-                 switches):
+                 switches, load_mult, pv_mult):
         self.ybus = ybus
         self.cnv = cnv
         self.energy_consumer = energy_consumer
@@ -121,6 +80,8 @@ class AgentData:
         self.der_pv = der_pv
         self.txfmrs_r = txfmrs_r
         self.txfmrs_z = txfmrs_z
+        self.load_mult = load_mult
+        self.pv_mult = pv_mult
 
     # Extract area specific data
     def area_agent(self):
@@ -138,27 +99,27 @@ class AgentData:
         phaseIdx = {'A': '.1', 'B': '.2', 'C': '.3', 's1\ns2': '.1.2', 's2\ns1': '.1.2'}
         pq_inj = {}
         pv_inj = {}
-        mult = 1.0
+
         for obj in energy_consumer:
             p = float(obj['p']['value'])
             q = float(obj['q']['value'])
             if obj['phases']['value'] == '':
-                pq_inj[obj['bus']['value'].upper() + '.1'] = (complex(p, q) / 3) * mult
-                pq_inj[obj['bus']['value'].upper() + '.2'] = (complex(p, q) / 3) * mult
-                pq_inj[obj['bus']['value'].upper() + '.3'] = (complex(p, q) / 3) * mult
+                pq_inj[obj['bus']['value'].upper() + '.1'] = (complex(p, q) / 3) * self.load_mult
+                pq_inj[obj['bus']['value'].upper() + '.2'] = (complex(p, q) / 3) * self.load_mult
+                pq_inj[obj['bus']['value'].upper() + '.3'] = (complex(p, q) / 3) * self.load_mult
             else:
-                pq_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * mult
+                pq_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * self.load_mult
 
         for obj in der_pv:
             p = float(obj['p']['value'])
             q = float(obj['q']['value'])
             if 's' not in obj['phases']['value']:
                 if obj['phases']['value'] == '':
-                    pv_inj[obj['bus']['value'].upper() + '.1'] = (complex(p, q) / 3) * mult
-                    pv_inj[obj['bus']['value'].upper() + '.2'] = (complex(p, q) / 3) * mult
-                    pv_inj[obj['bus']['value'].upper() + '.3'] = (complex(p, q) / 3) * mult
+                    pv_inj[obj['bus']['value'].upper() + '.1'] = (complex(p, q) / 3) * self.pv_mult
+                    pv_inj[obj['bus']['value'].upper() + '.2'] = (complex(p, q) / 3) * self.pv_mult
+                    pv_inj[obj['bus']['value'].upper() + '.3'] = (complex(p, q) / 3) * self.pv_mult
                 else:
-                    pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * mult
+                    pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * self.pv_mult
 
         # Extracting bus information
         print('Extracting bus information')
@@ -381,16 +342,17 @@ class AgentData:
     # Extract secondary specific data
     def secondary_agent(self):
         ybus = self.ybus
-        cnv = self.cnv
+        cnv  = self.cnv
         energy_consumer = self.energy_consumer
-        lines = self.lines
+        lines  = self.lines
         pxfmrs = self.pxfmrs
         txfmrs = self.txfmrs
-        switches = self.switches
+        switches  = self.switches
         node_name = self.node_name
-        der_pv = self.der_pv
+        der_pv   = self.der_pv
         txfmrs_r = self.txfmrs_r
         txfmrs_z = self.txfmrs_z
+
 
         G = nx.Graph()
         phaseIdx = {'A': '.1', 'B': '.2', 'C': '.3', 's1\ns2': '.1.2', 's2\ns1': '.1.2'}
@@ -401,18 +363,18 @@ class AgentData:
             p = float(obj['p']['value'])
             q = float(obj['q']['value'])
             if obj['phases']['value'] == '':
-                pq_inj[obj['bus']['value'].upper() + '.1'] = (complex(p, q) / 3) * mult
-                pq_inj[obj['bus']['value'].upper() + '.2'] = (complex(p, q) / 3) * mult
-                pq_inj[obj['bus']['value'].upper() + '.3'] = (complex(p, q) / 3) * mult
+                pq_inj[obj['bus']['value'].upper() + '.1'] = (complex(p, q) / 3) * self.load_mult
+                pq_inj[obj['bus']['value'].upper() + '.2'] = (complex(p, q) / 3) * self.load_mult
+                pq_inj[obj['bus']['value'].upper() + '.3'] = (complex(p, q) / 3) * self.load_mult
             else:
-                pq_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * mult
-                pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * 0
+                pq_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * self.load_mult
+                pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * 0.0
 
         for obj in der_pv:
             p = float(obj['p']['value'])
             q = float(obj['q']['value'])
             if 's' in obj['phases']['value']:
-                pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * 1.0
+                pv_inj[obj['bus']['value'].upper() + phaseIdx[obj['phases']['value']]] = complex(p, q) * self.pv_mult
 
         Bus = {}
         service_xfmr_bus = {}
@@ -595,26 +557,42 @@ class AgentData:
 
         return bus_info, tpx_xfmr, G, service_xfmr_bus, RatedS
 
+def parse_der_info(der_dict):
+    der_info = {}
+    for obj in der_dict:
+        bus_name = obj['bus']['value']
+        der_info[bus_name] = {}
+        for key in obj:
+            if 'bus' not in key:
+                try:
+                    der_info[bus_name][key] = float(obj[key]['value'])
+                except:
+                    der_info[bus_name][key] = obj[key]['value']
 
-def _main():
+    return der_info
+
+def main(feeder_mrid):
     os.environ['GRIDAPPSD_USER'] = "app_user"
     os.environ['GRIDAPPSD_PASSWORD'] = "1234App"
     gapps = GridAPPSD()
+
     simulation_id = '725830594'
     # feeder_mrid = "_C1C3E687-6FFD-C753-582B-632A27E28507" # IEEE 123 Original
     # feeder_mrid = "_E407CBB6-8C8D-9BC9-589C-AB83FBF0826D" # IEEE 123 PV- NREL
     # feeder_mrid = "_5B816B93-7A5F-B64C-8460-47C17D6E4B0F" # IEEE 13 Assets
     # feeder_mrid = "_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62" # IEEE 13 Node ckt (CDPSM)
-    feeder_mrid = "_59AD8E07-3BF9-A4E2-CB8F-C3722F837B62" # IEEE 123-- New model
+    # feeder_mrid = "_59AD8E07-3BF9-A4E2-CB8F-C3722F837B62" # IEEE 123-- New model
     # feeder_mrid = "_AAE94E4A-2465-6F5E-37B1-3E72183A4E44" # IEEE 9500
+
     model_api_topic = "goss.gridappsd.process.request.data.powergridmodel"
 
-    # Query Grid Data
+    ######## Query Grid Data #######
     print('Querying grid data \n')
     sparql_mgr = SPARQLManager(gapps, feeder_mrid, model_api_topic, simulation_id)
     ysparse, nodelist = sparql_mgr.ybus_export()
     energy_consumer = sparql_mgr.query_energyconsumer_lf()
     der_pv = sparql_mgr.query_photovoltaic()
+    der_batt = sparql_mgr.query_battery()
     lines = sparql_mgr.PerLengthPhaseImpedance_line_names()
     pxfmrs = sparql_mgr.PowerTransformerEnd_xfmr_names()
     txfmrs = sparql_mgr.TransformerTank_xfmr_names()
@@ -623,12 +601,20 @@ def _main():
     txfmrs_z = sparql_mgr.TransformerTank_xfmr_z()
     sourcebus = sparql_mgr.energysource_query()
 
-    # Node list into dictionary
+    ####### Parsing DER Info based on the service bus ########
+    energy_consumer_info = parse_der_info(energy_consumer)
+    der_pv_info = parse_der_info(der_pv)
+    der_batt_info = parse_der_info(der_batt)
+
+    ###### Assigning Load & DER Multiplier to simulate time steps ######
+    load_mult = 0.25
+    pv_mult = 1.0
+
+    ###### Node list into dictionary ######
     node_name = {}
     for idx, obj in enumerate(nodelist):
         node_name[obj.strip('\"')] = idx
     cnv = sparql_mgr.vnom_export()
-
     N = len(node_name)
     ybus = np.zeros((N, N), dtype=complex)
     for obj in ysparse:
@@ -640,7 +626,8 @@ def _main():
 
     print('Extracting agent-specific data \n')
     agent_input = AgentData(ybus, cnv, node_name, energy_consumer, der_pv, lines, pxfmrs, txfmrs, txfmrs_r, txfmrs_z,
-                            switches)
+                            switches, load_mult, pv_mult)
+
 
     # Extracting area agent (network model other than service level) from the grid data
     bus_info, branch_sw_data, G = agent_input.area_agent()
@@ -649,14 +636,31 @@ def _main():
     # Extracting secondary agents' data from the grid data
     bus_info_sec, tpx_xfmr, G_sec, service_xfmr_bus, RatedS = agent_input.secondary_agent()
 
+    # Initialize secondary transformer agents
+    alpha_store = {}
+
+    Seconday_agent_list= {}
+    for agent_bus in service_xfmr_bus:
+        for p in service_xfmr_bus[agent_bus]['phase']:
+            # If there are multiple service transformers in a bus, we need to separate them
+            G_sec_p = copy.deepcopy(G_sec)
+            if len(service_xfmr_bus[agent_bus]['phase']) > 1:
+                for e in tpx_xfmr:
+                    if tpx_xfmr[e]['type'] == 'SPLIT_PHASE' and tpx_xfmr[e]['phase'] != p:
+                        G_sec_p.remove_edge(tpx_xfmr[e]['fr_bus'], tpx_xfmr[e]['to_bus'])
+
+            sp_conn_graph = list(nx.connected_components(G_sec_p))
+            Seconday_agent_list[agent_bus+p] = Secondary_Agent(agent_bus, sp_conn_graph, bus_info_sec, tpx_xfmr, p, sparql_mgr.feeder_mrid, energy_consumer_info, der_pv_info, der_batt_info)
+            ## Intializing Alpha storing variable
+            alpha_store[agent_bus+p] = {}
+
     # Initialize the voltage for service transformer to be 1.04 pu
     bus_voltage = {}
-    alpha_store = {}
     bus_voltage_plot = {}
     xfmr_bus = []
     for agent_bus in service_xfmr_bus:
         xfmr_bus.append(agent_bus)
-        alpha_store[agent_bus] = {}
+        # alpha_store[agent_bus] = {}
         bus_voltage[agent_bus] = {}
         bus_voltage[agent_bus]['A'] = [1.04]
         bus_voltage[agent_bus]['B'] = [1.04]
@@ -668,6 +672,8 @@ def _main():
     iter = 30
     error = 1
     s_inj = []
+    v_substation = [1.04, 1.04, 1.04]
+
     while 1:
         ########################### SECONDARY AGENTS #################################
         # Extract the inputs required for each secondary agents
@@ -675,37 +681,30 @@ def _main():
         message_injection = {}
         err = [0]
         print("\nInvoking the service transformer agents. Iteration count = ", count)
-        for agent_bus in service_xfmr_bus:
-            message_injection[agent_bus] = [0j, 0j, 0j]
-            # Extracting a single agent data from secondary agent data
-            for p in service_xfmr_bus[agent_bus]['phase']:
-                # If there are multiple service transformers in a bus, we need to separate them
-                G_sec_p = copy.deepcopy(G_sec)
-                if len(service_xfmr_bus[agent_bus]['phase']) > 1:
-                    for e in tpx_xfmr:
-                        if tpx_xfmr[e]['type'] == 'SPLIT_PHASE' and tpx_xfmr[e]['phase'] != p:
-                            G_sec_p.remove_edge(tpx_xfmr[e]['fr_bus'], tpx_xfmr[e]['to_bus'])
+        for SA_id in Seconday_agent_list:
+            SA_instance = Seconday_agent_list[SA_id]
+            agent_bus = SA_instance.name
 
-                bus_info_sec_agent_i, tpx_xfmr_agent_i, xfmr_name = secondary_info(G_sec_p, agent_bus, bus_info_sec, tpx_xfmr)
-                ratedS = RatedS[xfmr_name][1]
-                # Invoke optimization with secondary agent location and indices
-                sec_i_agent = Secondary_Agent()
-                agent_bus_idx = bus_info_sec_agent_i[agent_bus]['idx']
-                # Source bus is a transformer primary.
-                # Trying different moving average to avoid oscillation in PCC
-                guess = 6
-                if count < guess:
-                    vsrc = [sum(bus_voltage[agent_bus][p]) / len(bus_voltage[agent_bus][p])]
-                else:
-                    vsrc = [sum(bus_voltage[agent_bus][p][-(guess-1):]) / len(bus_voltage[agent_bus][p][-(guess-1):])]
-                # Invoking the optimization
-                sec_inj, alpha, sec_bus_voltage = \
-                    sec_i_agent.alpha_area(tpx_xfmr_agent_i, bus_info_sec_agent_i, agent_bus, agent_bus_idx,
-                                           vsrc, service_xfmr_bus, p, ratedS)
-                message_injection[agent_bus] = np.add(message_injection[agent_bus], sec_inj).tolist()
-                alpha_store[agent_bus][count] = alpha
+            if agent_bus not in  message_injection:
+                message_injection[agent_bus] = [0j, 0j, 0j]
+
+            ratedS = RatedS[SA_instance.xfmr_name][1]
+            agent_bus_idx = SA_instance.bus_info_sec_agent_i[agent_bus]['idx']
+            # Source bus is a transformer primary.
+            # Trying different moving average to avoid oscillation in PCC
+            guess = 6
+            if count < guess:
+                vsrc = [sum(bus_voltage[agent_bus][SA_instance.phase]) / len(bus_voltage[agent_bus][SA_instance.phase])]
+            else:
+                vsrc = [sum(bus_voltage[agent_bus][SA_instance.phase][-(guess-1):]) / len(bus_voltage[agent_bus][SA_instance.phase][-(guess-1):])]
+
+            # Invoking the optimization
+            sec_inj, alpha, sec_bus_voltage = SA_instance.alpha_area(agent_bus, agent_bus_idx, vsrc, service_xfmr_bus, SA_instance.phase, ratedS)
+            message_injection[agent_bus] = np.add(message_injection[agent_bus], sec_inj).tolist()
+            alpha_store[SA_id][count] = alpha
+
             if count >= 1:
-                err.append(abs(alpha_store[agent_bus][count] - alpha_store[agent_bus][count - 1]))
+                err.append(abs(alpha_store[SA_id][count] - alpha_store[SA_id][count - 1]))
 
         if count >= 1:
             error = max(err)
@@ -729,8 +728,7 @@ def _main():
         area_i_agent = AreaCoordinator()
         agent_bus = sourcebus[0]['bus']['value'].upper()
         agent_bus_idx = bus_info[agent_bus]['idx']
-        vsrc = [1.04, 1.04, 1.04]
-        bus_voltage_area = area_i_agent.alpha_area(branch_sw_data, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus)
+        bus_voltage_area = area_i_agent.alpha_area(branch_sw_data, bus_info, agent_bus, agent_bus_idx, v_substation, service_xfmr_bus)
 
         # If no secondary network exists, no need to iterate on the optimization
         if len(service_xfmr_bus) == 0:
@@ -761,7 +759,26 @@ def _main():
                     phaseC.append(bus_voltage_area[k]['C'])
             break
 
-    # Plot the voltage after the convergence
+    ###### Assigning converged alpha to HEMS DERs ######
+    for SA_id in Seconday_agent_list:
+        SA_instance = Seconday_agent_list[SA_id]
+        f_name = '../outputs/agent_' + SA_id + '.json'
+        service_xfmr_agent = {}
+        service_xfmr_agent[SA_id] = {}
+        json_fp = open(f_name, 'w')
+        for HEMS in SA_instance.HEMS_list:
+            HEMS_instance = SA_instance.HEMS_list[HEMS]
+            if HEMS_instance.PV:
+                HEMS_instance.PV['set_point'] = HEMS_instance.PV['p']* pv_mult * (1 - alpha_store[SA_id][count - 1])
+                pv_diff = DifferenceBuilder(simulation_id)
+                pv_diff.add_difference(HEMS_instance.PV['id'], "PowerElectronicsConnection.p", HEMS_instance.PV['set_point'], 0)
+                msg = pv_diff.get_message()
+                service_xfmr_agent[SA_id][HEMS_instance.PV['name']] = msg
+        json.dump(service_xfmr_agent, json_fp, indent=2)
+        json_fp.close()
+
+
+    ###### Plot the voltage after the convergence ######
     plt.plot(phaseA)
     plt.plot(phaseB)
     plt.plot(phaseC)
@@ -771,11 +788,11 @@ def _main():
     plt.grid()
     plt.show()
 
-    # Plot individual alphas for service XFMRs after the convergence
-    for agent_bus in service_xfmr_bus:
+    ###### Plot individual alphas for service XFMRs after the convergence ######
+    for SA_id in Seconday_agent_list:
         alpha = []
         for k in range(count):
-            alpha.append(alpha_store[agent_bus][k])
+            alpha.append(alpha_store[SA_id][k])
         plt.plot(alpha[-(count-1):])
         # print(agent_bus, alpha)
 
@@ -784,17 +801,17 @@ def _main():
     plt.grid()
     plt.show()
 
-    # plot the voltage convergence as well
+    ###### plot the voltage convergence as well ######
     for agent_bus in service_xfmr_bus:
         plt_v = len(bus_voltage[agent_bus]['A'])
         # plt.plot(bus_voltage[agent_bus]['A'][-(plt_v-1):])
         # plt.plot(bus_voltage[agent_bus]['B'][-(plt_v-1):])
         plt.plot(bus_voltage[agent_bus]['A'][-(plt_v-1):])
+
     plt.xlabel('Iterations')
     plt.ylabel('PCC Voltages for service transformers (p.u.)')
     plt.grid()
     plt.show()
-
     plt.plot(s_inj)
     plt.xlabel('Iterations')
     plt.ylabel('Total injections from service transformers (kW)')
@@ -803,4 +820,9 @@ def _main():
 
 
 if __name__ == '__main__':
-    _main()
+
+    if len(sys.argv) > 1:
+        feeder_mrid = sys.argv[1]
+        main(feeder_mrid)
+    else:
+        print("No feeder mrid was provided while invoking the application")

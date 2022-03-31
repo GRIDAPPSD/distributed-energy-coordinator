@@ -9,18 +9,63 @@ import numpy as np
 import cvxpy as cp
 import math
 from tabulate import tabulate
-
+from HEMS_agent import HEMS
 
 class Secondary_Agent(object):
     """
     asdf
     """
+    def __init__(self, sourcebus, sp_graph, bus_info_sec, tpx_xfmr, phase, feeder_mrid, load, pv, batt):
 
-    def __init__(self):
-        self.name = 'area'
+        self.name = sourcebus
+        self.phase = phase
+        for k in sp_graph:
+            if sourcebus in k:
+                area = k
+                break
+        self.bus_info_sec_agent_i = {}
+        idx = 0
+        for key, val_bus in bus_info_sec.items():
+            if key in area:
+                self.bus_info_sec_agent_i[key] = {}
+                self.bus_info_sec_agent_i[key]['idx'] = idx
+                self.bus_info_sec_agent_i[key]['phase'] = bus_info_sec[key]['phases']
+                self.bus_info_sec_agent_i[key]['nodes'] = bus_info_sec[key]['nodes']
+                self.bus_info_sec_agent_i[key]['injection'] = bus_info_sec[key]['injection']
+                self.bus_info_sec_agent_i[key]['pv'] = bus_info_sec[key]['pv']
+                self.bus_info_sec_agent_i[key]['pq'] = bus_info_sec[key]['pq']
+                idx += 1
+
+        idx = 0
+        self.tpx_xfmr_agent_i = {}
+        for key, val_bus in tpx_xfmr.items():
+            if val_bus['fr_bus'] in self.bus_info_sec_agent_i and val_bus['to_bus'] in self.bus_info_sec_agent_i:
+                self.tpx_xfmr_agent_i[key] = {}
+                self.tpx_xfmr_agent_i[key]['idx'] = idx
+                self.tpx_xfmr_agent_i[key]['type'] = tpx_xfmr[key]['type']
+                self.tpx_xfmr_agent_i[key]['from'] = self.bus_info_sec_agent_i[tpx_xfmr[key]['fr_bus']]['idx']
+                self.tpx_xfmr_agent_i[key]['to'] = self.bus_info_sec_agent_i[tpx_xfmr[key]['to_bus']]['idx']
+                self.tpx_xfmr_agent_i[key]['fr_bus'] = tpx_xfmr[key]['fr_bus']
+                self.tpx_xfmr_agent_i[key]['to_bus'] = tpx_xfmr[key]['to_bus']
+                if tpx_xfmr[key]['type'] == 'SPLIT_PHASE':
+                    self.xfmr_name = key
+                    self. tpx_xfmr_agent_i[key]['impedance'] = tpx_xfmr[key]['impedance']
+                    self.tpx_xfmr_agent_i[key]['impedance1'] = tpx_xfmr[key]['impedance1']
+                else:
+                    self.tpx_xfmr_agent_i[key]['impedance'] = tpx_xfmr[key]['impedance']
+                # branch_sw_data_sec_agent_i[key]['zprim'] = branch_sw_data[key]['zprim']
+                idx += 1
+
+
+        self.HEMS_list = {}
+        for key, val_bus in self.bus_info_sec_agent_i.items():
+            self.HEMS_list[key] = HEMS('HEMS'+key, key.lower(), feeder_mrid, load, pv, batt)
+
 
     # Optimization to regulate the voltage
-    def alpha_area(self, xfmr_tpx, bus_info, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus, xfmr_phase, ratedS):
+    def alpha_area(self, agent_bus, agent_bus_idx, vsrc, service_xfmr_bus, xfmr_phase, ratedS):
+        xfmr_tpx = self.tpx_xfmr_agent_i
+        bus_info = self.bus_info_sec_agent_i
 
         # Forming the optimization variables
         nbranch = len(xfmr_tpx)
@@ -202,7 +247,7 @@ class Secondary_Agent(object):
                            A @ x == b])
 
         prob.solve(solver=cp.ECOS, verbose=False, max_iters=500, feastol=1e-4)
-        # print("\nThe optimal value is", (prob.value))
+        # print("\nThe optimal value is", (prob.value), prob.status)
 
         # Printing the line flows
         from_bus = []
