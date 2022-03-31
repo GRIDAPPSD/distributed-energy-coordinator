@@ -1,0 +1,220 @@
+{
+  "9A": {
+    "pv_s9a_5": {
+      "command": "update",
+      "input": {
+        "simulation_id": "725830594",
+        "message": {
+          "timestamp": 1648770634,
+          "difference_mrid": "094a7637-3113-4747-b559-4cf2ad306294",
+          "reverse_differences": [
+            {
+              "object": "_6477C53A-9C7D-4795-A7C7-DEEB907C5CD7",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 0
+            }
+          ],
+          "forward_differences": [
+            {
+              "object": "_6477C53A-9C7D-4795-A7C7-DEEB907C5CD7",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 2823.230943752864
+            }
+          ]
+        }
+      }
+    },
+    "pv_s9a_6": {
+      "command": "update",
+      "input": {
+        "simulation_id": "725830594",
+        "message": {
+          "timestamp": 1648770634,
+          "difference_mrid": "f0938f66-a86f-4cb8-8702-2a9757e2624b",
+          "reverse_differences": [
+            {
+              "object": "_E170DFAA-1EC6-4AC5-A974-97F606EF2E29",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 0
+            }
+          ],
+          "forward_differences": [
+            {
+              "object": "_E170DFAA-1EC6-4AC5-A974-97F606EF2E29",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 2933.4608521104196
+            }
+          ]
+        }
+      }
+    },
+    "pv_s9a_13": {
+      "command": "update",
+      "input": {
+        "simulation_id": "725830594",
+        "message": {
+          "timestamp": 1648770634,
+          "difference_mrid": "3d8ee376-ba5e-4c31-82a0-b5f27075dbb8",
+          "reverse_differences": [
+            {
+              "object": "_7F24267A-2752-4AAB-A5AF-64F852A741B6",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 0
+            }
+          ],
+          "forward_differences": [
+            {
+              "object": "_7F24267A-2752-4AAB-A5AF-64F852A741B6",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 4148.324264479671
+            }
+          ]
+        }
+      }
+    },
+    "pv_s9a_11": {
+      "command": "update",
+      "input": {
+        "simulation_id": "725830594",
+        "message": {
+          "timestamp": 1648770634,
+          "difference_mrid": "06bd0fc5-d2e8-41ef-bb5a-555f54636d7e",
+          "reverse_differences": [
+            {
+              "object": "_1114E59E-B37D-4969-872F-5A602F0BFB11",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 0
+            }
+          ],
+          "forward_differences": [
+            {
+              "object": "_1114E59E-B37D-4969-872F-5A602F0BFB11",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 3374.00818650701
+            }
+          ]
+        }
+      }
+    },
+    "pv_s9a_12": {
+      "command": "update",
+      "input": {
+        "simulation_id": "725830594",
+        "message": {
+          "timestamp": 1648770634,
+          "difference_mrid": "ddd4063b-2daf-4ce8-ac33-ba1e55bdd3d0",
+          "reverse_differences": [
+            {
+              "object": "_0DA123D5-0FA6-4DCB-87AC-581BE8FDBD2F",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 0
+            }
+          ],
+          "forward_differences": [
+            {
+              "object": "_0DA123D5-0FA6-4DCB-87AC-581BE8FDBD2F",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 2715.0917347638906
+            }
+          ]
+        }
+      }
+    },
+    "pv_s9a_3": {
+      "command": "update",
+      "input": {
+        "simulation_id": "725830594",
+        "message": {
+          "timestamp": 1648770634,
+          "difference_mrid": "73c86ea0-61a6-42ac-a4de-2f497376125c",
+          "reverse_differences": [
+            {
+              "object": "_493430FE-B27E-4119-8D47-E3CE63F29475",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 0
+            }
+          ],
+          "forward_differences": [
+            {
+              "object": "_493430FE-B27E-4119-8D47-E3CE63F29475",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 3930.7198524139008
+            }
+          ]
+        }
+      }
+    },
+    "pv_s9a_2": {
+      "command": "update",
+      "input": {
+        "simulation_id": "725830594",
+        "message": {
+          "timestamp": 1648770634,
+          "difference_mrid": "61f8bd37-ab6b-4cb2-809b-5bb2ca814aa9",
+          "reverse_differences": [
+            {
+              "object": "_65CB326F-09A4-4033-BC78-ADAB1189BE7C",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 0
+            }
+          ],
+          "forward_differences": [
+            {
+              "object": "_65CB326F-09A4-4033-BC78-ADAB1189BE7C",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 3011.3902802502867
+            }
+          ]
+        }
+      }
+    },
+    "pv_s9a_9": {
+      "command": "update",
+      "input": {
+        "simulation_id": "725830594",
+        "message": {
+          "timestamp": 1648770634,
+          "difference_mrid": "6c870a58-64bc-403f-a1fe-bffdcac9d361",
+          "reverse_differences": [
+            {
+              "object": "_D3CA2CF6-C3E8-48FD-808F-8141476C574E",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 0
+            }
+          ],
+          "forward_differences": [
+            {
+              "object": "_D3CA2CF6-C3E8-48FD-808F-8141476C574E",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 2880.8523567683983
+            }
+          ]
+        }
+      }
+    },
+    "pv_s9a_8": {
+      "command": "update",
+      "input": {
+        "simulation_id": "725830594",
+        "message": {
+          "timestamp": 1648770634,
+          "difference_mrid": "2f546749-ecc5-4d06-9008-2e6f695dc650",
+          "reverse_differences": [
+            {
+              "object": "_E74F5998-8C4F-4F9B-9ED4-0C7BFC94E45E",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 0
+            }
+          ],
+          "forward_differences": [
+            {
+              "object": "_E74F5998-8C4F-4F9B-9ED4-0C7BFC94E45E",
+              "attribute": "PowerElectronicsConnection.p",
+              "value": 3252.722556737479
+            }
+          ]
+        }
+      }
+    }
+  }
+}
