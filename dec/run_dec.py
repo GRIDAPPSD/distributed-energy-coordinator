@@ -639,7 +639,7 @@ def main(feeder_mrid):
     # Initialize secondary transformer agents
     alpha_store = {}
 
-    Seconday_agent_list= {}
+    Secondary_agent_list= {}
     for agent_bus in service_xfmr_bus:
         for p in service_xfmr_bus[agent_bus]['phase']:
             # If there are multiple service transformers in a bus, we need to separate them
@@ -650,7 +650,7 @@ def main(feeder_mrid):
                         G_sec_p.remove_edge(tpx_xfmr[e]['fr_bus'], tpx_xfmr[e]['to_bus'])
 
             sp_conn_graph = list(nx.connected_components(G_sec_p))
-            Seconday_agent_list[agent_bus+p] = Secondary_Agent(agent_bus, sp_conn_graph, bus_info_sec, tpx_xfmr, p, sparql_mgr.feeder_mrid, energy_consumer_info, der_pv_info, der_batt_info)
+            Secondary_agent_list[agent_bus+p] = Secondary_Agent(agent_bus, sp_conn_graph, bus_info_sec, tpx_xfmr, p, sparql_mgr.feeder_mrid, energy_consumer_info, der_pv_info, der_batt_info)
             ## Intializing Alpha storing variable
             alpha_store[agent_bus+p] = {}
 
@@ -681,8 +681,8 @@ def main(feeder_mrid):
         message_injection = {}
         err = [0]
         print("\nInvoking the service transformer agents. Iteration count = ", count)
-        for SA_id in Seconday_agent_list:
-            SA_instance = Seconday_agent_list[SA_id]
+        for SA_id in Secondary_agent_list:
+            SA_instance = Secondary_agent_list[SA_id]
             agent_bus = SA_instance.name
 
             if agent_bus not in  message_injection:
@@ -760,8 +760,8 @@ def main(feeder_mrid):
             break
 
     ###### Assigning converged alpha to HEMS DERs ######
-    for SA_id in Seconday_agent_list:
-        SA_instance = Seconday_agent_list[SA_id]
+    for SA_id in Secondary_agent_list:
+        SA_instance = Secondary_agent_list[SA_id]
         f_name = '../outputs/agent_' + SA_id + '.json'
         service_xfmr_agent = {}
         service_xfmr_agent[SA_id] = {}
@@ -789,7 +789,7 @@ def main(feeder_mrid):
     plt.show()
 
     ###### Plot individual alphas for service XFMRs after the convergence ######
-    for SA_id in Seconday_agent_list:
+    for SA_id in Secondary_agent_list:
         alpha = []
         for k in range(count):
             alpha.append(alpha_store[SA_id][k])
