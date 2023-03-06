@@ -9,7 +9,7 @@ import numpy as np
 import cvxpy as cp
 import math
 from tabulate import tabulate
-import mosek
+# import mosek
 
 
 class AreaAgent(object):
@@ -607,8 +607,8 @@ class AreaAgent(object):
             prob = cp.Problem(cp.Minimize(q.T @ x),
                               [G @ x <= h,
                                A @ x == b])
-        # prob.solve(solver=cp.ECOS, verbose=False, max_iters=500, abstol=1e-4, reltol=1e-4, feastol=1e-4)
-        prob.solve(solver=cp.MOSEK, verbose=False, bfs = True)
+        prob.solve(solver=cp.ECOS, verbose=False, reltol=1e-4, feastol=1e-4)
+        # prob.solve(solver=cp.MOSEK, verbose=False, bfs = True)
         # prob.solve(solver=cp.MOSEK, verbose=False)
         # print(prob.status)
         if prob.status == 'infeasible':

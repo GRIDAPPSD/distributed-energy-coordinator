@@ -151,6 +151,9 @@ def _main():
     G_area = copy.deepcopy(G)
     branch_sw_data_area_1, bus_info_area_1 = area_info(G_area, edge, branch_sw_xfmr, bus_info, sourcebus,
                                                        area_source_bus)
+    
+    with open("branch_sw_data_area_1.json", "a") as fp:
+            fp.write(json.dumps(branch_sw_data_area_1))
 
     area_info_swt['area_2']['edges'] = [['18', '135'], ['151', '300']]
     area_info_swt['area_2']['source_bus'] = '135'
@@ -159,6 +162,9 @@ def _main():
     G_area = copy.deepcopy(G)
     branch_sw_data_area_2, bus_info_area_2 = area_info(G_area, edge, branch_sw_xfmr, bus_info, sourcebus,
                                                        area_source_bus)
+    
+    with open("branch_sw_data_area_2.json", "a") as fp:
+            fp.write(json.dumps(branch_sw_data_area_2))
 
     area_info_swt['area_3']['edges'] = [['60', '160'], ['13', '152'], ['54', '94']]
     area_info_swt['area_3']['source_bus'] = '152'
@@ -193,9 +199,9 @@ def _main():
     bus_info_store['area_4'] = bus_info_area_4
     bus_info_store['area_5'] = bus_info_area_5
     
-    # json_bi = open('bus_info_store.json', 'w')
-    # json.dump(bus_info_store, json_bi, indent=4)
-    # json_bi.close()
+    json_bi = open('bus_info_store.json', 'w')
+    json.dump(bus_info_store, json_bi, indent=4)
+    json_bi.close()
 
     v_source = [1.0475, 1.0475, 1.0475]
 
