@@ -7,44 +7,58 @@ This repository contains the distributed energy coordinator application for over
 
 The proposed application is developed in Python, and it requires the following packages for formulating and solving the optimization problem. Note that all these packages can be installed using pip
 
-1.  cvxpy
-2.  networkx
-3.  tabulate
+### GridAPPSD
 
-## Running the distributed energy coordinator application
+I am running GridAPPSD through docker so I am following the Windows 10 WSL guide.
 
-1. From the command line execute the following commands to clone the repository
+[GridAPPS-D Documentation](https://gridappsd-training.readthedocs.io/en/develop/#)
 
-    ```console
-    user@user> git clone https://github.com/GRIDAPPSD/distributed-energy-coordinator
-    user@user> cd distributed-energy-coordinator
-    ```
+I am not sure if it matters, but I deviated from the install an cloned gridappsd-docker into windows 10. This seems to install cleaner for me.
 
-2. Run the gridappsd docker. Use the develop tag to download the containers
+```shell
+git clone git@github.com:GRIDAPPSD/gridappsd-docker.git
+cd gridappsd-docker
+./stop.sh
+./run.sh -t v2023.01.0
+```
 
-    ```` console
-    user@user> cd gridappsd-docker
-    user@user> ./run.sh -t develop
-    
-    # You will now be inside the container, the following starts gridappsd
-    
-    gridappsd@f4ede7dacb7d:/gridappsd$ ./run-gridappsd.sh
-    ```` 
-   
-3. Once the platform is up and running, start the application using the following commands. "feeder_mrid" is the model ID that is unique to each feeder.
+Once the docker containers are installed make sure they are running and attach to the gridappsd container.
 
-    ```` console
-    user@user> cd distributed-energy-coordinator
-    user@user/distributed-energy-coordinator> cd dec
-    user@user/distributed-energy-coordinator/dec> python3 run_dec.py "feeder_mrid"
-    ```` 
-   To simulate the over-voltage scenarios in the network, it is assumed that the PV generation is at its peak and nominal loads are scaled by a constant factor; this emulates an operating condition for a particular time of the day. In GridAPPS-D simulation, such operating conditions will be extracted from the simulation output using Simulation API. Once the application is invoked, it will start the optimization, and after the convergence, voltages and curtailment factors will be plotted. A CIM difference message will be created for the PV setpoint, and it will be dumped to a JSON file inside dec/outputs directory. Individual JSON files will be created for each agent that will contain the device information and its corresponding setpoints.
+```shell
+./run-gridappsd.sh
+```
 
+## Setup
 
-4. The CIM XML file of the modified IEEE 123-bus test feeder described above can be ingested into the database using the following commands. 
+```shell
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -r requirements.txt
+```
 
-    ```` console
-    user@user> cd distributed-energy-coordinator
-    user@user/distributed-energy-coordinator> cd inputs/feeder
-    user@user> ./ingest_feeder.sh
-    ````
+## Config
+set the environ variables in auth.py to the point to simulation and message bus configs
+
+```python
+import os
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+os.environ['OUTPUTS'] = f"{ROOT}/outputs"
+os.environ['BUS_CONFIG'] = f"{ROOT}/config/system_message_bus.yml"
+os.environ['GOSS_CONFIG'] = f"{ROOT}/config/pnnl.goss.gridappsd.cfg"
+os.environ['SIM_CONFIG'] = f"{ROOT}/config/ieee123.json"
+```
+
+make sure the gridappsd container is running the matching feeder, there is an assert to compare the config files. If there is a missmatch update the goss config and copy it into the docker container and rerun. 
+
+```bash
+docker cp config/pnnl.goss.gridappsd.cfg  gridappsd:/gridappsd/conf/pnnl.goss.gridappsd.cfg
+```
+
+## Run
+run main.py from the termanal in the main directory.
+
+```bash
+python main.py
+```

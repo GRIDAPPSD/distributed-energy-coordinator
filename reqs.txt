@@ -1,6 +1,0 @@
-gridappsd-python
-cvxpy
-networkx
-tabulate
-matplotlib
-pandas
