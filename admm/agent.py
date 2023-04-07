@@ -1,14 +1,15 @@
 import os
 import json
 import logging
-from typing import Dict
+from typing import Dict, List, Tuple
 from gridappsd.field_interface.agents import CoordinatingAgent, FeederAgent, SwitchAreaAgent, SecondaryAreaAgent
 from gridappsd.field_interface.interfaces import MessageBusDefinition
 from simulation import Sim
-import auth
+import queries as qy
 
 log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
+log.setLevel(logging.DEBUG)
 
 BUS_CONFIG = os.environ.get('BUS_CONFIG')
 OUTPUT_DIR = os.environ.get('OUTPUTS')
@@ -17,24 +18,35 @@ class SampleCoordinatingAgent(CoordinatingAgent):
     def __init__(self, feeder_id, system_message_bus_def, simulation_id=None):
         super().__init__(feeder_id, system_message_bus_def, simulation_id)
 
-
 class SampleFeederAgent(FeederAgent):
+    
     def __init__(self, upstream: MessageBusDefinition, downstream: MessageBusDefinition, feeder: Dict = None, simulation_id: str = None) -> None:
         super().__init__(upstream, downstream, feeder, simulation_id)
         self._latch = False
+        # init_cim(self.feeder_area)
+        # self.line_info, self.bus_info = query_line_info(self.feeder_area)
+        # print(self.bus_info)
 
     def on_measurement(self, headers: Dict, message) -> None:
         if not self._latch:
             log.debug("measurement: %s.%s", self.__class__.__name__, headers.get('destination'), exc_info=True)
             with open(f'{OUTPUT_DIR}/feeder.json', "w", encoding='UTF-8') as file:
                 file.write(json.dumps(message))
-            self._latch = True
+            self._latch = True      
 
-
-class SampleSwitchAreaAgent(SwitchAreaAgent):
+class SampleSwitchAreaAgent(SwitchAreaAgent):   
     def __init__(self, upstream: MessageBusDefinition, downstream: MessageBusDefinition, feeder: Dict = None, simulation_id: str = None) -> None:
         super().__init__(upstream, downstream, feeder, simulation_id)
         self._latch = False
+        qy.init_cim(self.switch_area)
+        self.line_info, self.bus_info = qy.query_line_info(self.switch_area)
+        self.bus_info.update(qy.query_transformers(self.switch_area))
+        self.bus_info.update(qy.query_power_electronics(self.switch_area))
+        self.bus_info.update(qy.query_energy_consumers(self.switch_area))
+        
+        save_info(f'{feeder["message_bus_id"]}_lineinfo', self.line_info)
+        save_info(f'{feeder["message_bus_id"]}_businfo', self.bus_info)
+
 
     def on_measurement(self, headers: Dict, message):
         if not self._latch:
@@ -47,6 +59,8 @@ class SampleSecondaryAreaAgent(SecondaryAreaAgent):
     def __init__(self, upstream: MessageBusDefinition, downstream: MessageBusDefinition, feeder: Dict = None, simulation_id: str = None) -> None:
         super().__init__(upstream, downstream, feeder, simulation_id)
         self._latch = False
+        qy.init_cim(self.secondary_area)
+        self.line_info, self.bus_info = qy.query_line_info(self.secondary_area)
 
     def on_measurement(self, headers: Dict, message):
         if not self._latch:
@@ -54,7 +68,7 @@ class SampleSecondaryAreaAgent(SecondaryAreaAgent):
             with open(f'{OUTPUT_DIR}/secondary.json', "w", encoding='UTF-8') as file:
                 file.write(json.dumps(message))
             self._latch = True
-
+                            
 def overwrite_parameters(feeder_id: str, area_id: str = '') -> MessageBusDefinition:
     """_summary_
     """
@@ -75,11 +89,13 @@ def overwrite_parameters(feeder_id: str, area_id: str = '') -> MessageBusDefinit
     return bus_def
 
 def save_area(context: dict) -> None:
-    """_summary_
-    """
     with open(f"{OUTPUT_DIR}/{context['message_bus_id']}.json", "w", encoding='UTF-8') as file:
         file.write(json.dumps(context))
         
+def save_info(context: str, info: dict) -> None:
+    with open(f"{OUTPUT_DIR}/{context}.json", "w", encoding='UTF-8') as file:
+        file.write(json.dumps(info))
+
 def spawn_feeder_agent(context: dict, sim: Sim, coord_agent: SampleCoordinatingAgent) -> None:
     sys_message_bus = overwrite_parameters(sim.get_feeder_id())
     feeder_message_bus = overwrite_parameters(sim.get_feeder_id())
@@ -110,25 +126,3 @@ def spawn_switch_area_agents(context: dict, idx: int, sim: Sim, coord_agent: Sam
                                   context,
                                   sim.get_simulation_id())
     coord_agent.spawn_distributed_agent(agent)
-    
-    # Get all the attributes of the equipments in the switch area from the model 
-    # EXAMPLE 1 - Get phase, bus info about ACLineSegments
-    # example.get_lines_buses(agent.switch_area)
-    
-    # # EXAMPLE 2 - Get all line impedance data
-    # example.get_line_impedances(agent.switch_area)
-    
-    # # EXAMPLE 3 - Sort all line impedance by line phase:
-    # example.sort_impedance_by_line(agent.switch_area)
-    
-    # # Example 4 - Sort all lines by impedance
-    # example.sort_line_by_impedance(agent.switch_area)
-    
-    # # Example 5 - Get TransformerTank impedances
-    # example.get_tank_impedances(agent.switch_area)
-    
-    # # Example 6 - Get inverter buses and phases
-    # example.get_inverter_buses(agent.switch_area)
-    
-    # # Example 7 - Get load buses and phases
-    # example.get_load_buses(agent.switch_area)

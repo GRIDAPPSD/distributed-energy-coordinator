@@ -32,6 +32,15 @@ def compare_config(goss_config: str, sim_config: dict) -> None:
     sim_feeder = sim_config["power_system_config"]["Line_name"]
     assert sim_feeder in goss_config, f"file {goss_config} field.model.mrid does not match {sim_feeder}"
     
+class ADMM(object):
+    coordinator: CoordinatingAgent
+    feeder_agent: FeederAgent
+    switch_agents: dict
+    secondary_agents: dict
+    
+    def __init__(self) -> None:
+        pass
+    
 def run() -> None:
     goss_config = load_cfg(os.environ.get('GOSS_CONFIG'))
     sim_config = load_json(os.environ.get('SIM_CONFIG'))
