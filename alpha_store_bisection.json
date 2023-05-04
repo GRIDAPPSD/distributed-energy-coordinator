@@ -1,0 +1,29 @@
+{
+    "1": {
+        "alpha_range": [
+            0,
+            1
+        ],
+        "maxv": 1.0471367142015962,
+        "alpha_bisection": 0.5,
+        "iteration": 7
+    },
+    "2": {
+        "alpha_range": [
+            0,
+            0.5
+        ],
+        "maxv": 1.0544191801272262,
+        "alpha_bisection": 0.25,
+        "iteration": 7
+    },
+    "3": {
+        "alpha_range": [
+            0.25,
+            0.5
+        ],
+        "maxv": 1.0507842560795067,
+        "alpha_bisection": 0.375,
+        "iteration": 7
+    }
+}
