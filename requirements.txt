@@ -1,6 +1,8 @@
-gridappsd-python
+gridappsd-python==2.7.230209
 cvxpy
 networkx
 tabulate
 matplotlib
 pandas
+mosek
+tabulate
