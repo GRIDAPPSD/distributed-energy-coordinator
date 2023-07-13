@@ -31,10 +31,8 @@ Once the docker containers are installed make sure they are running and attach t
 ## Setup
 
 ```shell
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
+poetry install
+poetry update
 ```
 
 ## Config
@@ -60,5 +58,5 @@ docker cp config/pnnl.goss.gridappsd.cfg  gridappsd:/gridappsd/conf/pnnl.goss.gr
 run main.py from the termanal in the main directory.
 
 ```bash
-python main.py
+poetry run python src/main.py
 ```
