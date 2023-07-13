@@ -140,18 +140,18 @@ files = [
 
 [[package]]
 name = "gridappsd-field-bus"
-version = "2023.6.1a2"
+version = "2023.7.1a1"
 description = "GridAPPS-D Field Bus Implementation"
 optional = false
 python-versions = ">=3.7.9,<4.0"
 files = [
-    {file = "gridappsd_field_bus-2023.6.1a2-py3-none-any.whl", hash = "sha256:3c0149e361233f6ba9214833de7a4490d3f8e4fed500a12876058b97837df4bd"},
-    {file = "gridappsd_field_bus-2023.6.1a2.tar.gz", hash = "sha256:1c42ee5e01b2c2a0177d7c91a4b41690f8d422a85da1c09fd04a11c266b70bfb"},
+    {file = "gridappsd_field_bus-2023.7.1a1-py3-none-any.whl", hash = "sha256:b6a4c454230f717e1beff5b192a12dda6e569d35f82e5eed1ed02938f31f15e7"},
+    {file = "gridappsd_field_bus-2023.7.1a1.tar.gz", hash = "sha256:747fd591839f5343622c6bb45b1c3a52294a51871a425409e70c8601f7a64c0c"},
 ]
 
 [package.dependencies]
 cim-graph = ">=2023.5.1a3,<2024.0.0"
-gridappsd-python = ">=2023.6.1a2,<2024.0.0"
+gridappsd-python = ">=2023.7.1a1,<2024.0.0"
 
 [[package]]
 name = "gridappsd-python"
@@ -408,4 +408,4 @@ test = ["codecov", "pre-commit", "pytest", "pytest-benchmark", "pytest-cov", "to
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8"
-content-hash = "fb0bf6581ff7dad9812e868bf8ae3320e83fbf74eb2dd20bb82c47afbde84961"
+content-hash = "a40bbda5efc3df68181bc36b87e08ffc674195f463b82b2c36e6ea343d96d459"
