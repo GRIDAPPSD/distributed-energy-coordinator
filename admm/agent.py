@@ -19,13 +19,10 @@ log = logging.getLogger(__name__)
 log.addHandler(logging.NullHandler())
 log.setLevel(logging.DEBUG)
 
-BUS_CONFIG = os.environ.get("BUS_CONFIG")
-OUTPUT_DIR = os.environ.get("OUTPUTS")
 SOURCE_BUSES = {"4": "149", "5": "135", "3": "152", "1": "160", "2": "197"}
 SOURCE_VOLTAGE = [1.0475, 1.0475, 1.0475]
-
 ALPHAS = [0, 0, 0, 0, 0]
-LAMBDA_V = np.zeros((5,3))
+LAMBDA_V = np.zeros((5, 3))
 LAMBDA = [0, 0, 0, 0, 0]
 LAMBDA_P = [0, 0, 0]
 LAMBDA_Q = [0, 0, 0]
@@ -35,9 +32,10 @@ LAST_P = [0, 0, 0]
 LAST_Q = [0, 0, 0]
 LAST_V = [0, 0, 0]
 
+
 class SampleCoordinatingAgent(CoordinatingAgent):
     def __init__(self, feeder_id, system_message_bus_def, simulation_id=None):
-        super().__init__(feeder_id, system_message_bus_def, simulation_id)
+        super().__init__(system_message_bus_def, simulation_id)
 
 
 class SampleFeederAgent(FeederAgent):
@@ -45,11 +43,13 @@ class SampleFeederAgent(FeederAgent):
         self,
         upstream: MessageBusDefinition,
         downstream: MessageBusDefinition,
+        config: Dict,
         feeder: Dict = None,
         simulation_id: str = None,
     ) -> None:
-        super().__init__(upstream, downstream, feeder, simulation_id)
+        super().__init__(upstream, downstream, config, feeder, simulation_id)
         self._latch = False
+        self.connect()
         # init_cim(self.feeder_area)
         # self.line_info, self.bus_info = query_line_info(self.feeder_area)
         # print(self.bus_info)
@@ -62,9 +62,17 @@ class SampleFeederAgent(FeederAgent):
                 headers.get("destination"),
                 exc_info=True,
             )
-            with open(f"{OUTPUT_DIR}/feeder.json", "w", encoding="UTF-8") as file:
+            with open(f"{os.environ.get('OUTPUT_DIR')}/feeder.json", "w", encoding="UTF-8") as file:
                 file.write(json.dumps(message))
             self._latch = True
+
+    def on_downstream_message(self, headers: Dict, message) -> None:
+        print(headers)
+        print(message)
+
+    def on_upstream_message(self, headers: Dict, message) -> None:
+        print(headers)
+        print(message)
 
 
 class SampleSwitchAreaAgent(SwitchAreaAgent):
@@ -72,10 +80,11 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
         self,
         upstream: MessageBusDefinition,
         downstream: MessageBusDefinition,
+        config: Dict,
         feeder: Dict = None,
         simulation_id: str = None,
     ) -> None:
-        super().__init__(upstream, downstream, feeder, simulation_id)
+        super().__init__(upstream, downstream, config, feeder, simulation_id)
         self._latch = False
         self.area = feeder["message_bus_id"][-1:]
         self.alpha = AlphaArea()
@@ -89,7 +98,8 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
         self.bus_info.update(qy.query_power_electronics(self.switch_area))
         self.bus_info.update(qy.query_energy_consumers(self.switch_area))
 
-        self.branch_info, self.bus_info = qy.index_info(self.branch_info, self.bus_info)
+        self.branch_info, self.bus_info = qy.index_info(
+            self.branch_info, self.bus_info)
 
         print(f'branch count: {len(self.branch_info.keys())}')
         print(f'bus count:  {len(self.bus_info.keys())}')
@@ -103,7 +113,6 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
             OrderedDict(sorted(self.bus_info.items())),
         )
 
-        print("Starting Alpha Area")
         self.alpha.alpha_area(
             self.branch_info,
             self.bus_info,
@@ -111,7 +120,7 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
             self.bus_info[SOURCE_BUSES[self.area]]["idx"],
             SOURCE_VOLTAGE,
             0,
-            False,
+            True,
             int(self.area),
             ALPHAS,
             LAMBDA_V,
@@ -124,9 +133,16 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
             LAST_Q,
             LAST_V
         )
-        print("Finished Alpha Area")
+
+        self.connect()
 
     def on_measurement(self, headers: Dict, message):
+        message = {
+            "area": self.area,
+            "message": "whatever",
+            "tags": ["area", "any_common_key"]
+        }
+        self.switch_area.publish_upstream(message)
         if not self._latch:
             log.debug(
                 "measurement: %s.%s",
@@ -134,11 +150,19 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
                 headers.get("destination"),
                 exc_info=True,
             )
-            with open(f"{OUTPUT_DIR}/switch_area.json", "w", encoding="UTF-8") as file:
+            with open(f"{os.environ.get('OUTPUT_DIR')}/switch_area.json", "w", encoding="UTF-8") as file:
                 file.write(json.dumps(message))
 
-            
             self._latch = True
+            self.downstream_message_bus.publish(self.bus_info, self.area)
+
+    def on_downstream_message(self, headers: Dict, message) -> None:
+        print(headers)
+        print(message)
+
+    def on_upstream_message(self, headers: Dict, message) -> None:
+        print(headers)
+        print(message)
 
 
 class SampleSecondaryAreaAgent(SecondaryAreaAgent):
@@ -146,13 +170,15 @@ class SampleSecondaryAreaAgent(SecondaryAreaAgent):
         self,
         upstream: MessageBusDefinition,
         downstream: MessageBusDefinition,
+        config: Dict,
         feeder: Dict = None,
         simulation_id: str = None,
     ) -> None:
-        super().__init__(upstream, downstream, feeder, simulation_id)
+        super().__init__(upstream, downstream, config, feeder, simulation_id)
         self._latch = False
         qy.init_cim(self.secondary_area)
-        self.branch_info, self.bus_info = qy.query_line_info(self.secondary_area)
+        self.branch_info, self.bus_info = qy.query_line_info(
+            self.secondary_area)
 
         branch, bus = qy.query_transformers(self.secondary_area)
         self.branch_info.update(branch)
@@ -164,6 +190,8 @@ class SampleSecondaryAreaAgent(SecondaryAreaAgent):
         print(f'branch count: {len(self.branch_info.keys())}')
         print(f'bus count:  {len(self.bus_info.keys())}')
 
+        self.connect()
+
     def on_measurement(self, headers: Dict, message):
         if not self._latch:
             log.debug(
@@ -172,14 +200,13 @@ class SampleSecondaryAreaAgent(SecondaryAreaAgent):
                 headers.get("destination"),
                 exc_info=True,
             )
-            with open(f"{OUTPUT_DIR}/secondary.json", "w", encoding="UTF-8") as file:
+            with open(f"{os.environ.get('OUTPUT_DIR')}/secondary.json", "w", encoding="UTF-8") as file:
                 file.write(json.dumps(message))
             self._latch = True
 
 
 def overwrite_parameters(feeder_id: str, area_id: str = "") -> MessageBusDefinition:
-    """_summary_"""
-    bus_def = MessageBusDefinition.load(BUS_CONFIG)
+    bus_def = MessageBusDefinition.load(os.environ.get("BUS_CONFIG"))
     if area_id:
         bus_def.id = feeder_id + "." + area_id
     else:
@@ -193,33 +220,41 @@ def overwrite_parameters(feeder_id: str, area_id: str = "") -> MessageBusDefinit
         )
 
     bus_def.conneciton_args["GRIDAPPSD_ADDRESS"] = f"tcp://{address}:{port}"
-    bus_def.conneciton_args["GRIDAPPSD_USER"] = os.environ.get("GRIDAPPSD_USER")
-    bus_def.conneciton_args["GRIDAPPSD_PASSWORD"] = os.environ.get("GRIDAPPSD_PASSWORD")
+    bus_def.conneciton_args["GRIDAPPSD_USER"] = os.environ.get(
+        "GRIDAPPSD_USER")
+    bus_def.conneciton_args["GRIDAPPSD_PASSWORD"] = os.environ.get(
+        "GRIDAPPSD_PASSWORD")
+    print(bus_def)
     return bus_def
 
 
 def save_area(context: dict) -> None:
     with open(
-        f"{OUTPUT_DIR}/{context['message_bus_id']}.json", "w", encoding="UTF-8"
+        f"{os.environ.get('OUTPUT_DIR')}/{context['message_bus_id']}.json", "w", encoding="UTF-8"
     ) as file:
         file.write(json.dumps(context))
 
 
 def save_info(context: str, info: dict) -> None:
-    with open(f"{OUTPUT_DIR}/{context}.json", "w", encoding="UTF-8") as file:
+    with open(f"{os.environ.get('OUTPUT_DIR')}/{context}.json", "w", encoding="UTF-8") as file:
         file.write(json.dumps(info))
 
 
 def spawn_feeder_agent(
-    context: dict, sim: Sim, coord_agent: SampleCoordinatingAgent
-) -> None:
-    sys_message_bus = overwrite_parameters(sim.get_feeder_id())
-    feeder_message_bus = overwrite_parameters(sim.get_feeder_id())
+        context: dict, sim: Sim, coord_agent: SampleCoordinatingAgent):
     save_area(context)
+
+    agent_config = {
+        "app_id": "sample_app",
+        "description":
+        "This is a GridAPPS-D sample distribution application agent"
+    }
+
     agent = SampleFeederAgent(
-        sys_message_bus, feeder_message_bus, context, sim.get_simulation_id()
-    )
+        context, context, agent_config, None, sim.get_simulation_id())
     coord_agent.spawn_distributed_agent(agent)
+
+    return agent
 
 
 def spawn_secondary_agents(
@@ -234,9 +269,17 @@ def spawn_secondary_agents(
         sim.get_feeder_id(), f"{sw_idx}.{sec_idx}"
     )
     save_area(context)
+
+    agent_config = {
+        "app_id": "something_else",
+        "description":
+        "This is a GridAPPS-D sample distribution application agent"
+    }
+
     agent = SampleSecondaryAreaAgent(
         switch_message_bus,
         secondary_area_message_bus_def,
+        agent_config,
         context,
         sim.get_simulation_id(),
     )
@@ -249,8 +292,15 @@ def spawn_switch_area_agents(
 ) -> None:
     feeder_message_bus = overwrite_parameters(sim.get_feeder_id())
     save_area(context)
+
+    agent_config = {
+        "app_id": "something_new",
+        "description":
+        "This is a GridAPPS-D sample distribution application agent"
+    }
+
     switch_message_bus = overwrite_parameters(sim.get_feeder_id(), f"{idx}")
     agent = SampleSwitchAreaAgent(
-        feeder_message_bus, switch_message_bus, context, sim.get_simulation_id()
+        feeder_message_bus, switch_message_bus, agent_config, context, sim.get_simulation_id()
     )
     coord_agent.spawn_distributed_agent(agent)

@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "distributed-energy-coordinator"
+version = "0.1.0"
+description = ""
+authors = ["Tylores <tylor.slay@gmail.com>"]
+readme = "README.md"
+packages = [{include = "distributed_energy_coordinator"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+gridappsd-python = "2023.7.1a1"
+cim-graph = "2023.5.1a3"
+gridappsd-field-bus = "2023.6.1a2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

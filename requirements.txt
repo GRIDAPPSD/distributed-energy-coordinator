@@ -1,4 +1,6 @@
-gridappsd-python==2.7.230209
+gridappsd-python==2023.5.1a8
+cim-graph==0.1.20230508194360a0
+gridappsd-field-bus==2023.5.1a8
 cvxpy
 networkx
 tabulate
@@ -6,3 +8,4 @@ matplotlib
 pandas
 mosek
 tabulate
+serde
