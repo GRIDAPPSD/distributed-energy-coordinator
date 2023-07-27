@@ -10,7 +10,9 @@ from agents import SampleFeederAgent
 from agents import SampleCoordinatingAgent
 from agents import SampleSwitchAreaAgent
 from agents import SampleSecondaryAreaAgent
-
+from context import FeederAreaContextManager
+from context import SwitchAreaContextManager
+from context import SecondaryAreaContextManager
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -55,6 +57,36 @@ def start_simulation(config: dict) -> Sim:
     return Sim(config)
 
 
+def spawn_context_managers(sim: Sim) -> None:
+
+    system_bus = overwrite_parameters(sim.get_feeder_id())
+
+    config = {
+        "app_id": "context_manager",
+        "description": "This agent provides topological context information like neighboring agents and devices to other distributed agents"
+    }
+
+    feeder_bus = system_bus
+    feeder_manager = FeederAreaContextManager(
+        system_bus, feeder_bus, config, sim.get_simulation_id())
+
+    switch_areas = feeder_manager.area['switch_areas']
+    log.debug(switch_areas)
+    for sw_idx, switch_area in enumerate(switch_areas):
+        switch_bus = overwrite_parameters(sim.get_feeder_id(), f"{sw_idx}")
+        if sw_idx != 0:
+            switch_manager = SwitchAreaContextManager(
+                feeder_bus, switch_bus, config, sim.get_simulation_id())
+
+        secondary_areas = switch_area['secondary_area']
+        log.debug(secondary_areas)
+        for sec_idx, secondary_area in enumerate(secondary_areas):
+            secondary_bus = overwrite_parameters(
+                sim.get_feeder_id(), f"{sw_idx}.{sec_idx}")
+            secondary_manager = SecondaryAreaContextManager(
+                switch_bus, secondary_bus, config, sim.get_simulation_id())
+
+
 def spawn_agents(sim: Sim) -> None:
 
     system_bus = overwrite_parameters(sim.get_feeder_id())
@@ -74,6 +106,7 @@ def spawn_agents(sim: Sim) -> None:
     coordinating_agent.spawn_distributed_agent(feeder_agent)
 
     switch_areas = feeder_agent.agent_area_dict['switch_areas']
+    log.debug(switch_areas)
     for sw_idx, switch_area in enumerate(switch_areas):
         switch_bus = overwrite_parameters(sim.get_feeder_id(), f"{sw_idx}")
         if sw_idx != 0:
@@ -81,7 +114,9 @@ def spawn_agents(sim: Sim) -> None:
                 feeder_bus, switch_bus, config, switch_area, sim.get_simulation_id())
             coordinating_agent.spawn_distributed_agent(switch_agent)
 
-        for sec_idx, secondary_area in enumerate(switch_area['secondary_areas']):
+        secondary_areas = switch_area['secondary_area']
+        log.debug(secondary_areas)
+        for sec_idx, secondary_area in enumerate(secondary_areas):
             secondary_bus = overwrite_parameters(
                 sim.get_feeder_id(), f"{sw_idx}.{sec_idx}")
             secondary_agent = SampleSecondaryAreaAgent(
@@ -98,10 +133,9 @@ def run():
         compare_config(goss_config, sim_config)
 
         sim = start_simulation(sim_config)
-        log.debug("Waiting for simulation to spin up")
-        time.sleep(20)
-
+        spawn_context_managers(sim)
         spawn_agents(sim)
+
     except Exception as e:
         log.debug(e)
         log.debug(traceback.format_exc())

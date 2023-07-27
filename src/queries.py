@@ -3,13 +3,14 @@ import logging
 from typing import Tuple
 from enum import IntEnum
 import numpy as np
-import gridappsd.field_interface.agents.agents as agents_mod
-from cimlab.data_profile import CIM_PROFILE
 
-log = logging.getLogger(__name__)
+import gridappsd.field_interface.agents.agents as agents_mod
+from cimgraph.data_profile import CIM_PROFILE
 cim_profile = CIM_PROFILE.RC4_2021.value
 agents_mod.set_cim_profile(cim_profile)
 cim = agents_mod.cim
+
+log = logging.getLogger(__name__)
 
 OUTPUT_DIR = os.environ.get("OUTPUTS")
 

@@ -4,6 +4,7 @@ from typing import OrderedDict
 import json
 import logging
 import numpy as np
+import gridappsd.topics as t
 from gridappsd.field_interface.context import LocalContext
 from gridappsd.field_interface.interfaces import MessageBusDefinition
 from gridappsd.field_interface.agents import CoordinatingAgent
@@ -15,6 +16,8 @@ from alpha_area import AlphaArea
 
 log = logging.getLogger(__name__)
 
+REQUEST_FIELD = ".".join((t.PROCESS_PREFIX, "request.field"))
+REQUEST_FIELD_CONTEXT = ".".join((REQUEST_FIELD, "context"))
 
 SOURCE_BUSES = {"4": "149", "5": "135", "3": "152", "1": "160", "2": "197"}
 SOURCE_VOLTAGE = [1.0475, 1.0475, 1.0475]
