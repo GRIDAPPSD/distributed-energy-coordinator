@@ -29,9 +29,9 @@ def initialize():
     os.environ['BUS_CONFIG'] = f"{ROOT}/config/system_message_bus.yml"
     os.environ['GOSS_CONFIG'] = f"{ROOT}/config/pnnl.goss.gridappsd.cfg"
     os.environ['SIM_CONFIG'] = f"{ROOT}/config/ieee123.json"
-    os.environ['GRIDAPPSD_APPLICATION_ID'] = 'dist-sample-app'
-    os.environ['GRIDAPPSD_USER'] = 'app_user'
-    os.environ['GRIDAPPSD_PASSWORD'] = '1234App'
+    os.environ['GRIDAPPSD_APPLICATION_ID'] = 'dist-admm'
+    os.environ['GRIDAPPSD_USER'] = 'system'
+    os.environ['GRIDAPPSD_PASSWORD'] = 'manager'
     os.environ['GRIDAPPSD_ADDRESS'] = 'localhost'
     os.environ['GRIDAPPSD_PORT'] = '61613'
 
@@ -127,8 +127,9 @@ def spawn_agents(sim: Sim) -> None:
 def run():
 
     try:
-        initialize()
-        sim_config = load_json(os.environ.get('SIM_CONFIG'))
+
+
+'dist-admm'        sim_config = load_json(os.environ.get('SIM_CONFIG'))
         goss_config = load_cfg(os.environ.get('GOSS_CONFIG'))
         compare_config(goss_config, sim_config)
 
