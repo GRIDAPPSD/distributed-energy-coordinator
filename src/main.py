@@ -25,10 +25,10 @@ class LineName(Enum):
 
 def initialize():
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    os.environ['OUTPUTS'] = f"{ROOT}/outputs"
+    os.environ['OUTPUT_DIR'] = f"{ROOT}/outputs"
     os.environ['BUS_CONFIG'] = f"{ROOT}/config/system_message_bus.yml"
     os.environ['GOSS_CONFIG'] = f"{ROOT}/config/pnnl.goss.gridappsd.cfg"
-    os.environ['SIM_CONFIG'] = f"{ROOT}/config/ieee123.json"
+    os.environ['SIM_CONFIG'] = f"{ROOT}/config/ieee13.json"
     os.environ['GRIDAPPSD_APPLICATION_ID'] = 'dist-admm'
     os.environ['GRIDAPPSD_USER'] = 'system'
     os.environ['GRIDAPPSD_PASSWORD'] = 'manager'
@@ -68,23 +68,23 @@ def spawn_context_managers(sim: Sim) -> None:
 
     feeder_bus = system_bus
     feeder_manager = FeederAreaContextManager(
-        system_bus, feeder_bus, config, sim.get_simulation_id())
+        system_bus, feeder_bus, config, None, sim.get_simulation_id())
 
-    switch_areas = feeder_manager.area['switch_areas']
+    switch_areas = feeder_manager.agent_area_dict['switch_areas']
     log.debug(switch_areas)
     for sw_idx, switch_area in enumerate(switch_areas):
         switch_bus = overwrite_parameters(sim.get_feeder_id(), f"{sw_idx}")
         if sw_idx != 0:
             switch_manager = SwitchAreaContextManager(
-                feeder_bus, switch_bus, config, sim.get_simulation_id())
+                feeder_bus, switch_bus, config, switch_area, sim.get_simulation_id())
 
-        secondary_areas = switch_area['secondary_area']
+        secondary_areas = switch_area['secondary_areas']
         log.debug(secondary_areas)
         for sec_idx, secondary_area in enumerate(secondary_areas):
             secondary_bus = overwrite_parameters(
                 sim.get_feeder_id(), f"{sw_idx}.{sec_idx}")
             secondary_manager = SecondaryAreaContextManager(
-                switch_bus, secondary_bus, config, sim.get_simulation_id())
+                switch_bus, secondary_bus, config, secondary_area, sim.get_simulation_id())
 
 
 def spawn_agents(sim: Sim) -> None:
@@ -103,8 +103,7 @@ def spawn_agents(sim: Sim) -> None:
     feeder_bus = system_bus
     feeder_agent = SampleFeederAgent(
         system_bus, feeder_bus, config, None, sim.get_simulation_id())
-    coordinating_agent.spawn_distributed_agent(feeder_agent)
-
+    
     switch_areas = feeder_agent.agent_area_dict['switch_areas']
     log.debug(switch_areas)
     for sw_idx, switch_area in enumerate(switch_areas):
@@ -112,24 +111,22 @@ def spawn_agents(sim: Sim) -> None:
         if sw_idx != 0:
             switch_agent = SampleSwitchAreaAgent(
                 feeder_bus, switch_bus, config, switch_area, sim.get_simulation_id())
-            coordinating_agent.spawn_distributed_agent(switch_agent)
-
-        secondary_areas = switch_area['secondary_area']
+            
+        secondary_areas = switch_area['secondary_areas']
         log.debug(secondary_areas)
         for sec_idx, secondary_area in enumerate(secondary_areas):
             secondary_bus = overwrite_parameters(
                 sim.get_feeder_id(), f"{sw_idx}.{sec_idx}")
             secondary_agent = SampleSecondaryAreaAgent(
                 switch_bus, secondary_bus, config, secondary_area, sim.get_simulation_id())
-            coordinating_agent.spawn_distributed_agent(secondary_agent)
 
 
 def run():
 
     try:
 
-
-'dist-admm'        sim_config = load_json(os.environ.get('SIM_CONFIG'))
+        initialize()
+        sim_config = load_json(os.environ.get('SIM_CONFIG'))
         goss_config = load_cfg(os.environ.get('GOSS_CONFIG'))
         compare_config(goss_config, sim_config)
 
