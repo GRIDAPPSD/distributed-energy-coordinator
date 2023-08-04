@@ -28,7 +28,7 @@ def initialize():
     os.environ['OUTPUT_DIR'] = f"{ROOT}/outputs"
     os.environ['BUS_CONFIG'] = f"{ROOT}/config/system_message_bus.yml"
     os.environ['GOSS_CONFIG'] = f"{ROOT}/config/pnnl.goss.gridappsd.cfg"
-    os.environ['SIM_CONFIG'] = f"{ROOT}/config/ieee13.json"
+    os.environ['SIM_CONFIG'] = f"{ROOT}/config/ieee123.json"
     os.environ['GRIDAPPSD_APPLICATION_ID'] = 'dist-admm'
     os.environ['GRIDAPPSD_USER'] = 'system'
     os.environ['GRIDAPPSD_PASSWORD'] = 'manager'
@@ -103,31 +103,29 @@ def spawn_agents(sim: Sim) -> None:
     feeder_bus = system_bus
     feeder_agent = SampleFeederAgent(
         system_bus, feeder_bus, config, None, sim.get_simulation_id())
-    
+
     switch_areas = feeder_agent.agent_area_dict['switch_areas']
-    log.debug(switch_areas)
     for sw_idx, switch_area in enumerate(switch_areas):
         switch_bus = overwrite_parameters(sim.get_feeder_id(), f"{sw_idx}")
-        if sw_idx != 0:
+        if sw_idx != 0 and switch_area:
             switch_agent = SampleSwitchAreaAgent(
                 feeder_bus, switch_bus, config, switch_area, sim.get_simulation_id())
-            
+
         secondary_areas = switch_area['secondary_areas']
-        log.debug(secondary_areas)
         for sec_idx, secondary_area in enumerate(secondary_areas):
             secondary_bus = overwrite_parameters(
                 sim.get_feeder_id(), f"{sw_idx}.{sec_idx}")
-            secondary_agent = SampleSecondaryAreaAgent(
-                switch_bus, secondary_bus, config, secondary_area, sim.get_simulation_id())
+            if secondary_area:
+                secondary_agent = SampleSecondaryAreaAgent(
+                    switch_bus, secondary_bus, config, secondary_area, sim.get_simulation_id())
 
 
 def run():
+    initialize()
+    sim_config = load_json(os.environ.get('SIM_CONFIG'))
+    goss_config = load_cfg(os.environ.get('GOSS_CONFIG'))
 
     try:
-
-        initialize()
-        sim_config = load_json(os.environ.get('SIM_CONFIG'))
-        goss_config = load_cfg(os.environ.get('GOSS_CONFIG'))
         compare_config(goss_config, sim_config)
 
         sim = start_simulation(sim_config)

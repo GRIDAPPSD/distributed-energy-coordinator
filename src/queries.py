@@ -184,17 +184,28 @@ def query_power_electronics(network_area) -> dict:
         bus_info[node.name]["kv"] = float(pec.ratedU)
 
         for pec_phs in pec.PowerElectronicsConnectionPhases:
-            if pec_phs.phase[0] == "A":
-                bus_info[node.name]["pv"][0] = [pec.p, pec.q]
-                bus_info[node.name]["phases"].append(Phase[pec_phs.phase[0]])
+            if pec_phs.phase:
+                if pec_phs.phase[0] == "A":
+                    bus_info[node.name]["pv"][0] = [pec.p, pec.q]
+                    bus_info[node.name]["phases"].append(
+                        Phase[pec_phs.phase[0]])
 
-            if pec_phs.phase[0] == "B":
-                bus_info[node.name]["pv"][1] = [pec.p, pec.q]
-                bus_info[node.name]["phases"].append(Phase[pec_phs.phase[0]])
+                if pec_phs.phase[0] == "B":
+                    bus_info[node.name]["pv"][1] = [pec.p, pec.q]
+                    bus_info[node.name]["phases"].append(
+                        Phase[pec_phs.phase[0]])
 
-            if pec_phs.phase[0] == "C":
-                bus_info[node.name]["pv"][2] = [pec.p, pec.q]
-                bus_info[node.name]["phases"].append(Phase[pec_phs.phase[0]])
+                if pec_phs.phase[0] == "C":
+                    bus_info[node.name]["pv"][2] = [pec.p, pec.q]
+                    bus_info[node.name]["phases"].append(
+                        Phase[pec_phs.phase[0]])
+            else:
+                real = pec.p/3.0
+                imag = pec.q/3.0
+                bus_info[node.name]["pv"][0] = [real, imag]
+                bus_info[node.name]["pv"][1] = [real, imag]
+                bus_info[node.name]["pv"][2] = [real, imag]
+                bus_info[node.name]["phases"].append('')
 
     return bus_info
 
@@ -227,5 +238,12 @@ def query_energy_consumers(network_area) -> dict:
                     bus_info[node.name]["pq"][2] = power
                     bus_info[node.name]["phases"].append(
                         Phase[load_phs.phase[0]])
+            else:
+                real = load_phs.p/3.0
+                imag = load_phs.q/3.0
+                bus_info[node.name]["pv"][0] = [real, imag]
+                bus_info[node.name]["pv"][1] = [real, imag]
+                bus_info[node.name]["pv"][2] = [real, imag]
+                bus_info[node.name]["phases"].append('')
 
     return bus_info

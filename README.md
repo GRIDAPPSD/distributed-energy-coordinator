@@ -38,25 +38,20 @@ poetry update
 ## Config
 set the environ variables in auth.py to the point to simulation and message bus configs
 
-```python
-import os
-
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-os.environ['OUTPUTS'] = f"{ROOT}/outputs"
-os.environ['BUS_CONFIG'] = f"{ROOT}/config/system_message_bus.yml"
-os.environ['GOSS_CONFIG'] = f"{ROOT}/config/pnnl.goss.gridappsd.cfg"
-os.environ['SIM_CONFIG'] = f"{ROOT}/config/ieee123.json"
+```shell
+export GRIDAPPSD_USER="system"
+export GRIDAPPSD_PASSWORD="manager"
 ```
 
 make sure the gridappsd container is running the matching feeder, there is an assert to compare the config files. If there is a missmatch update the goss config and copy it into the docker container and rerun. 
 
-```bash
+```shell
 docker cp config/pnnl.goss.gridappsd.cfg  gridappsd:/gridappsd/conf/pnnl.goss.gridappsd.cfg
 ```
 
 ## Run
 run main.py from the termanal in the main directory.
 
-```bash
+```shell
 poetry run python src/main.py
 ```
