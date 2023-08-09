@@ -118,6 +118,9 @@ def spawn_agents(sim: Sim) -> None:
             if secondary_area:
                 secondary_agent = SampleSecondaryAreaAgent(
                     switch_bus, secondary_bus, config, secondary_area, sim.get_simulation_id())
+                if len(secondary_agent.secondary_area.addressable_equipment) == 0:
+                    log.info(f"No addressable equipment in the area {secondary_agent.downstream_message_bus.id}. Disconnecting the agent.")
+                    secondary_agent.disconnect()
 
 
 def run():

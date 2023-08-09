@@ -17,7 +17,7 @@ agents_mod.set_cim_profile(cim_profile)
 
 cim = agents_mod.cim
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logging.getLogger('goss').setLevel(logging.ERROR)
 logging.getLogger('stomp.py').setLevel(logging.ERROR)
 
