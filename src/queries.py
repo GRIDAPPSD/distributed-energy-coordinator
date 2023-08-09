@@ -239,11 +239,12 @@ def query_energy_consumers(network_area) -> dict:
                     bus_info[node.name]["phases"].append(
                         Phase[load_phs.phase[0]])
             else:
-                real = load_phs.p/3.0
-                imag = load_phs.q/3.0
-                bus_info[node.name]["pv"][0] = [real, imag]
-                bus_info[node.name]["pv"][1] = [real, imag]
-                bus_info[node.name]["pv"][2] = [real, imag]
-                bus_info[node.name]["phases"].append('')
+                if load_phs.p is not None:
+                    real = load_phs.p/3.0
+                    imag = load_phs.q/3.0
+                    bus_info[node.name]["pv"][0] = [real, imag]
+                    bus_info[node.name]["pv"][1] = [real, imag]
+                    bus_info[node.name]["pv"][2] = [real, imag]
+                    bus_info[node.name]["phases"].append('')
 
     return bus_info
