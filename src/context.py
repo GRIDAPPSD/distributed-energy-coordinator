@@ -17,13 +17,9 @@ agents_mod.set_cim_profile(cim_profile)
 
 cim = agents_mod.cim
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger('goss').setLevel(logging.ERROR)
-logging.getLogger('stomp.py').setLevel(logging.ERROR)
+log = logging.getLogger(__name__)
 
-_log = logging.getLogger(__name__)
-
-#FieldBusManager's request topics. To be used only by context manager user role only.
+# FieldBusManager's request topics. To be used only by context manager user role only.
 REQUEST_FIELD = ".".join((t.PROCESS_PREFIX, "request.field"))
 REQUEST_FIELD_CONTEXT = ".".join((REQUEST_FIELD, "context"))
 
@@ -46,9 +42,9 @@ class FeederAreaContextManager(FeederAgent):
         super().__init__(upstream_message_bus_def, downstream_message_bus_def,
                          agent_config, feeder_dict, simulation_id)
 
-        #Override agent_id to a static value
+        # Override agent_id to a static value
         self.agent_id = downstream_message_bus_def.id + '.context_manager'
-        
+
         self.context = None
 
         self.registered_agents = {}
@@ -60,14 +56,15 @@ class FeederAreaContextManager(FeederAgent):
 
     def on_request(self, message_bus, headers: Dict, message):
 
-        _log.debug(f"Received request: {message}")
+        log.debug(f"Received request: {message}")
 
         if message['request_type'] == 'get_context':
             del message['request_type']
             reply_to = headers['reply-to']
             if self.context is None:
-                self.context = self.ot_connection.get_response(REQUEST_FIELD_CONTEXT, message)
-            message_bus.send(reply_to,self.context)
+                self.context = self.ot_connection.get_response(
+                    REQUEST_FIELD_CONTEXT, message)
+            message_bus.send(reply_to, self.context)
 
         elif message['request_type'] == 'register_agent':
             self.ot_connection.send(t.REGISTER_AGENT_QUEUE, message)
@@ -100,9 +97,9 @@ class SwitchAreaContextManager(SwitchAreaAgent):
         super().__init__(upstream_message_bus_def, downstream_message_bus_def,
                          agent_config, switch_area_dict, simulation_id)
 
-        #Override agent_id to a static value
+        # Override agent_id to a static value
         self.agent_id = downstream_message_bus_def.id + '.context_manager'
-        
+
         self.context = None
 
         self.registered_agents = {}
@@ -110,13 +107,14 @@ class SwitchAreaContextManager(SwitchAreaAgent):
 
     def on_request(self, message_bus, headers: Dict, message):
 
-        _log.debug(f"Received request: {message}")
+        log.debug(f"Received request: {message}")
 
         if message['request_type'] == 'get_context':
             reply_to = headers['reply-to']
             if self.context is None:
-                self.context = self.ot_connection.get_response(REQUEST_FIELD_CONTEXT, message)
-            message_bus.send(reply_to,self.context)
+                self.context = self.ot_connection.get_response(
+                    REQUEST_FIELD_CONTEXT, message)
+            message_bus.send(reply_to, self.context)
 
         elif message['request_type'] == 'register_agent':
             self.ot_connection.send(t.REGISTER_AGENT_QUEUE, message)
@@ -149,9 +147,9 @@ class SecondaryAreaContextManager(SecondaryAreaAgent):
         super().__init__(upstream_message_bus_def, downstream_message_bus_def,
                          agent_config, secondary_area_dict, simulation_id)
 
-        #Override agent_id to a static value
+        # Override agent_id to a static value
         self.agent_id = downstream_message_bus_def.id + '.context_manager'
-        
+
         self.context = None
 
         self.registered_agents = {}
@@ -159,15 +157,15 @@ class SecondaryAreaContextManager(SecondaryAreaAgent):
 
     def on_request(self, message_bus, headers: Dict, message):
 
-        _log.debug(f"Received request: {message}")
-        _log.debug(f"Received request: {headers}")
+        log.debug(f"Received request: {message}")
+        log.debug(f"Received request: {headers}")
 
         if message['request_type'] == 'get_context':
             reply_to = headers['reply-to']
             if self.context is None:
-                self.context = self.ot_connection.get_response(REQUEST_FIELD_CONTEXT, message)
-            message_bus.send(reply_to,self.context)
-
+                self.context = self.ot_connection.get_response(
+                    REQUEST_FIELD_CONTEXT, message)
+            message_bus.send(reply_to, self.context)
 
         elif message['request_type'] == 'register_agent':
             self.ot_connection.send(t.REGISTER_AGENT_QUEUE, message)
@@ -177,7 +175,6 @@ class SecondaryAreaContextManager(SecondaryAreaAgent):
         elif message['request_type'] == 'get_agents':
             reply_to = headers['reply-to']
             message_bus.send(reply_to, self.registered_agents)
-        
+
     def on_measurement(self, headers: Dict, message):
         pass
-

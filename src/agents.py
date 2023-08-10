@@ -113,11 +113,16 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
         )
 
     def on_measurement(self, headers: Dict, message):
-        log.debug(
-            f"measurement: {self.__class__.__name__}.{headers.get('destination')}"
-        )
-        with open("switch_area.txt", "a") as fp:
-            fp.write(json.dumps(message))
+        if not self._latch:
+            log.debug(
+                "measurement: %s.%s",
+                self.__class__.__name__,
+                headers.get("destination"),
+                exc_info=True,
+            )
+            with open(f"{os.environ.get('OUTPUT_DIR')}/switch.json", "w", encoding="UTF-8") as file:
+                file.write(json.dumps(message))
+            self._latch = True
 
     def on_upstream_message(self, headers: Dict, message) -> None:
         log.info(f"Received message from upstream message bus: {message}")

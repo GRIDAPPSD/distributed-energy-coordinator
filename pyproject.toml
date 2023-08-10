@@ -8,8 +8,8 @@ packages = [{include = "distributed_energy_coordinator"}]
 
 [tool.poetry.dependencies]
 python = "^3.8"
-gridappsd-python = "2023.7.1a9"
-cim-graph = "2023.7.1a2"
+gridappsd-python = "2023.8.1a0"
+cim-graph = "2023.8.1a0"
 gridappsd-field-bus = "2023.7.1a9"
 
 [build-system]
