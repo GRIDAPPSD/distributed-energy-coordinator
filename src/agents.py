@@ -19,7 +19,7 @@ log = logging.getLogger(__name__)
 REQUEST_FIELD = ".".join((t.PROCESS_PREFIX, "request.field"))
 REQUEST_FIELD_CONTEXT = ".".join((REQUEST_FIELD, "context"))
 
-SOURCE_BUSES = {"4": "149", "5": "135", "3": "152", "1": "160", "2": "197"}
+SOURCE_BUSES = {"1": "149", "2": "135", "3": "152", "4": "160", "5": "197"}
 SOURCE_VOLTAGE = [1.0475, 1.0475, 1.0475]
 ALPHAS = [0, 0, 0, 0, 0]
 LAMBDA_V = np.zeros((5, 3))
@@ -77,6 +77,7 @@ class SampleFeederAgent(FeederAgent):
 class SampleSwitchAreaAgent(SwitchAreaAgent):
     _latch = False
     _measurements = {}
+    _location = ""
 
     def __init__(self,
                  upstream: MessageBusDefinition,
@@ -85,8 +86,6 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
                  area: Dict = None,
                  simulation_id: str = None) -> None:
         super().__init__(upstream, downstream, config, area, simulation_id)
-
-        self.area_id = area["message_bus_id"]
         self.alpha = AlphaArea()
         qy.init_cim(self.switch_area)
         self.branch_info, self.bus_info = qy.query_line_info(self.switch_area)
@@ -104,12 +103,16 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
         log.debug(f'branch count: {len(self.branch_info.keys())}')
         log.debug(f'bus count:  {len(self.bus_info.keys())}')
 
+        for key, value in SOURCE_BUSES.items():
+            if value in self.bus_info:
+                self._location = key
+
         save_info(
-            f'{area["message_bus_id"]}_lineinfo', OrderedDict(
+            f'{area["message_bus_id"]}_branch_info_{self._location}', OrderedDict(
                 sorted(self.branch_info.items())),
         )
         save_info(
-            f'{area["message_bus_id"]}_businfo',
+            f'{area["message_bus_id"]}_businfo_{self._location}',
             OrderedDict(sorted(self.bus_info.items())),
         )
 
@@ -117,7 +120,7 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
         if not self._latch:
             for key, value in message.items():
                 if key in self._measurements:
-                    with open(f"{os.environ.get('OUTPUT_DIR')}/{self.area_id}_measurments.json", "w", encoding="UTF-8") as file:
+                    with open(f"{os.environ.get('OUTPUT_DIR')}/measurments_{self._location}.json", "w", encoding="UTF-8") as file:
                         file.write(json.dumps(self._measurements))
                     self._latch
                 else:
