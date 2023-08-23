@@ -71,7 +71,6 @@ def spawn_context_managers(sim: Sim) -> None:
         system_bus, feeder_bus, config, None, sim.get_simulation_id())
 
     switch_areas = feeder_manager.agent_area_dict['switch_areas']
-    log.debug(switch_areas)
     for sw_idx, switch_area in enumerate(switch_areas):
         switch_bus = overwrite_parameters(sim.get_feeder_id(), f"{sw_idx}")
         if sw_idx != 0:
@@ -79,7 +78,6 @@ def spawn_context_managers(sim: Sim) -> None:
                 feeder_bus, switch_bus, config, switch_area, sim.get_simulation_id())
 
         secondary_areas = switch_area['secondary_areas']
-        log.debug(secondary_areas)
         for sec_idx, secondary_area in enumerate(secondary_areas):
             secondary_bus = overwrite_parameters(
                 sim.get_feeder_id(), f"{sw_idx}.{sec_idx}")
