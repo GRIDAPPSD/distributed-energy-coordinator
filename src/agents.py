@@ -76,7 +76,6 @@ class SampleFeederAgent(FeederAgent):
 
 class SampleSwitchAreaAgent(SwitchAreaAgent):
     _latch = False
-    _measurements = {}
     _location = ""
 
     def __init__(self,
@@ -85,6 +84,7 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
                  config: Dict,
                  area: Dict = None,
                  simulation_id: str = None) -> None:
+        self._measurements = {}
         super().__init__(upstream, downstream, config, area, simulation_id)
         self.alpha = AlphaArea()
         qy.init_cim(self.switch_area)
