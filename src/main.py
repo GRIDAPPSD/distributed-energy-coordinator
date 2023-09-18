@@ -57,7 +57,7 @@ def start_simulation(config: dict) -> Sim:
     return Sim(config)
 
 
-def spawn_context_managers(sim: Sim) -> None:
+def spawn_context_managers(sim: Sim = None) -> None:
 
     system_bus = overwrite_parameters(sim.get_feeder_id())
 

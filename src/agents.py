@@ -1,6 +1,7 @@
 import os
 from typing import Dict
 from typing import OrderedDict
+from typing import Tuple
 import json
 import logging
 import numpy as np
@@ -33,6 +34,12 @@ LAST_Q = [0, 0, 0]
 LAST_V = [0, 0, 0]
 
 
+def pol_to_cart(rho: float, phi: float) -> Tuple[float, float]:
+    x = rho * np.cos(phi)
+    y = rho * np.sin(phi)
+    return x, y
+
+
 class SampleCoordinatingAgent(CoordinatingAgent):
     _latch = False
 
@@ -42,14 +49,13 @@ class SampleCoordinatingAgent(CoordinatingAgent):
 
 
 class SampleFeederAgent(FeederAgent):
-    _latch = False
-
     def __init__(self,
                  upstream: MessageBusDefinition,
                  downstream: MessageBusDefinition,
                  config: Dict,
                  area: Dict = None,
                  simulation_id: str = None) -> None:
+        self._latch = False
         super().__init__(upstream, downstream, config, area, simulation_id)
         log.debug("Spawning Feeder Agent")
 
@@ -75,16 +81,15 @@ class SampleFeederAgent(FeederAgent):
 
 
 class SampleSwitchAreaAgent(SwitchAreaAgent):
-    _latch = False
-    _location = ""
-
     def __init__(self,
                  upstream: MessageBusDefinition,
                  downstream: MessageBusDefinition,
                  config: Dict,
                  area: Dict = None,
                  simulation_id: str = None) -> None:
+        self._location = ""
         self._measurements = {}
+        self.mrid_map = {}
         super().__init__(upstream, downstream, config, area, simulation_id)
         self.alpha = AlphaArea()
         qy.init_cim(self.switch_area)
@@ -94,8 +99,12 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
         self.branch_info.update(branch)
         self.bus_info.update(bus)
 
-        self.bus_info.update(qy.query_power_electronics(self.switch_area))
-        self.bus_info.update(qy.query_energy_consumers(self.switch_area))
+        pv, mrid_pv = qy.query_power_electronics(self.switch_area)
+        self.bus_info.update(pv)
+        self.mrid_map.update(mrid_pv)
+        ec, mrid_ec = qy.query_energy_consumers(self.switch_area)
+        self.bus_info.update(pv)
+        self.mrid_map.update(mrid_ec)
 
         self.branch_info, self.bus_info = qy.index_info(
             self.branch_info, self.bus_info)
@@ -117,15 +126,16 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
         )
 
     def on_measurement(self, headers: Dict, message):
-        if not self._latch:
-            for key, value in message.items():
-                if key in self._measurements:
-                    with open(f"{os.environ.get('OUTPUT_DIR')}/measurments_{self._location}.json", "w", encoding="UTF-8") as file:
-                        file.write(json.dumps(self._measurements))
-                    self._latch
-                else:
-                    self._measurements[key] = value
-            # self._latch = True
+        for key, value in message.items():
+            if key in self.mrid_map:
+                real, imag = pol_to_cart(value['magnitude'], value['angle'])
+                log.info(f"{key}: {real} and {imag} for {self.mrid_map[key]}")
+            if key in self._measurements:
+                with open(f"{os.environ.get('OUTPUT_DIR')}/measurments_{self._location}.json", "w", encoding="UTF-8") as file:
+                    file.write(json.dumps(self._measurements))
+                self._measurements = {}
+            else:
+                self._measurements[key] = value
 
     def on_upstream_message(self, headers: Dict, message) -> None:
         log.info(f"Received message from upstream message bus: {message}")
@@ -135,14 +145,15 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
 
 
 class SampleSecondaryAreaAgent(SecondaryAreaAgent):
-    _latch = False
-
     def __init__(self,
                  upstream: MessageBusDefinition,
                  downstream: MessageBusDefinition,
                  config: Dict,
                  area: Dict = None,
                  simulation_id: str = None) -> None:
+        self._location = ""
+        self._measurements = {}
+        self.mrid_map = {}
         super().__init__(upstream, downstream, config, area, simulation_id)
         qy.init_cim(self.secondary_area)
         self.branch_info, self.bus_info = qy.query_line_info(
@@ -152,17 +163,27 @@ class SampleSecondaryAreaAgent(SecondaryAreaAgent):
         self.branch_info.update(branch)
         self.bus_info.update(bus)
 
-        self.bus_info.update(qy.query_power_electronics(self.secondary_area))
-        self.bus_info.update(qy.query_energy_consumers(self.secondary_area))
+        pv, mrid_pv = qy.query_power_electronics(self.secondary_area)
+        self.bus_info.update(pv)
+        self.mrid_map.update(mrid_pv)
+        ec, mrid_ec = qy.query_energy_consumers(self.secondary_area)
+        self.bus_info.update(pv)
+        self.mrid_map.update(mrid_ec)
 
         log.debug(f'branch count: {len(self.branch_info.keys())}')
         log.debug(f'bus count:  {len(self.bus_info.keys())}')
 
     def on_measurement(self, headers: Dict, message):
-        if not self._latch:
-            with open(f"{os.environ.get('OUTPUT_DIR')}/secondary.json", "w", encoding="UTF-8") as file:
-                file.write(json.dumps(message))
-            self._latch = True
+        for key, value in message.items():
+            if key in self.mrid_map:
+                real, imag = pol_to_cart(value['magnitude'], value['angle'])
+                log.info(f"{key}: {real} and {imag}")
+            if key in self._measurements:
+                with open(f"{os.environ.get('OUTPUT_DIR')}/measurments_{self._location}.json", "w", encoding="UTF-8") as file:
+                    file.write(json.dumps(self._measurements))
+                self._measurements = {}
+            else:
+                self._measurements[key] = value
 
     def on_upstream_message(self, headers: Dict, message) -> None:
         log.info(f"Received message from upstream message bus: {message}")

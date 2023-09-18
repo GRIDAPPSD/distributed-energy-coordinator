@@ -10,7 +10,7 @@ packages = [{include = "distributed_energy_coordinator"}]
 python = "^3.8"
 gridappsd-python = "2023.8.1a0"
 cim-graph = "2023.8.1a0"
-gridappsd-field-bus = "2023.7.1a9"
+gridappsd-field-bus = "2023.8.1a0"
 
 [build-system]
 requires = ["poetry-core"]

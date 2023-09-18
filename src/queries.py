@@ -34,6 +34,7 @@ def init_branch() -> dict:
 def init_bus() -> dict:
     bus = {}
     bus["phases"] = []
+    bus["mrid"] = []
     bus["kv"] = 2400  # TODO query actual values
     bus["pq"] = np.zeros((3, 2)).tolist()
     bus["pv"] = np.zeros((3, 2)).tolist()
@@ -80,6 +81,8 @@ def init_cim(network_area) -> None:
     network_area.get_all_attributes(cim.PowerElectronicsConnection)
     network_area.get_all_attributes(cim.PowerElectronicsConnectionPhase)
     network_area.get_all_attributes(cim.EnergyConsumer)
+    network_area.get_all_attributes(cim.EnergyConsumerPhase)
+    network_area.get_all_attributes(cim.Analog)
     network_area.get_all_attributes(cim.EnergyConsumerPhase)
     network_area.get_all_attributes(cim.Terminal)
 
@@ -172,11 +175,12 @@ def query_transformers(network_area) -> Tuple[dict, dict]:
     return branch_info, bus_info
 
 
-def query_power_electronics(network_area) -> dict:
+def query_power_electronics(network_area) -> Tuple[dict, dict]:
     if cim.PowerElectronicsConnection not in network_area.typed_catalog:
-        return {}
+        return {}, {}
 
     bus_info = {}
+    mrid_map = {}
 
     for pec in network_area.typed_catalog[cim.PowerElectronicsConnection].values():
         node = pec.Terminals[0].ConnectivityNode
@@ -184,57 +188,69 @@ def query_power_electronics(network_area) -> dict:
         bus_info[node.name]["kv"] = float(pec.ratedU)
 
         for pec_phs in pec.PowerElectronicsConnectionPhases:
+            mrid = pec_phs.Measurements[0].mRID
+            mrid_map[mrid] = node.name
             if pec_phs.phase:
                 if pec_phs.phase[0] == "A":
+                    bus_info[node.name]["mrid"].append(mrid)
                     bus_info[node.name]["pv"][0] = [pec.p, pec.q]
                     bus_info[node.name]["phases"].append(
                         Phase[pec_phs.phase[0]])
 
                 if pec_phs.phase[0] == "B":
+                    bus_info[node.name]["mrid"].append(mrid)
                     bus_info[node.name]["pv"][1] = [pec.p, pec.q]
                     bus_info[node.name]["phases"].append(
                         Phase[pec_phs.phase[0]])
 
                 if pec_phs.phase[0] == "C":
+                    bus_info[node.name]["mrid"].append(mrid)
                     bus_info[node.name]["pv"][2] = [pec.p, pec.q]
                     bus_info[node.name]["phases"].append(
                         Phase[pec_phs.phase[0]])
             else:
                 real = pec.p/3.0
                 imag = pec.q/3.0
+                bus_info[node.name]["mrid"].append(mrid)
                 bus_info[node.name]["pv"][0] = [real, imag]
                 bus_info[node.name]["pv"][1] = [real, imag]
                 bus_info[node.name]["pv"][2] = [real, imag]
                 bus_info[node.name]["phases"].append('')
 
-    return bus_info
+    return bus_info, mrid_map
 
 
 # sort EnergyConsumers
-def query_energy_consumers(network_area) -> dict:
+def query_energy_consumers(network_area) -> Tuple[dict, dict]:
     if cim.EnergyConsumer not in network_area.typed_catalog:
-        return {}
+        return {}, {}
 
     bus_info = {}
+    mrid_map = {}
 
     for load in network_area.typed_catalog[cim.EnergyConsumer].values():
         node = load.Terminals[0].ConnectivityNode
         bus_info[node.name] = init_bus()
-
         for load_phs in load.EnergyConsumerPhase:
             if load_phs.phase:
+                print(node.name, load_phs.phase, load.Measurements)
                 power = [float(load_phs.p), float(load_phs.q)]
+                mrid = load.Measurements[0].mRID
+                mrid_map[mrid] = node.name
                 if load_phs.phase[0] == "A":
+                    bus_info[node.name]["mrid"].append(mrid)
                     bus_info[node.name]["pq"][0] = power
                     bus_info[node.name]["phases"].append(
                         Phase[load_phs.phase[0]])
 
                 if load_phs.phase[0] == "B":
+                    bus_info[node.name]["mrid"].append(mrid)
                     bus_info[node.name]["pq"][1] = power
                     bus_info[node.name]["phases"].append(
                         Phase[load_phs.phase[0]])
 
                 if load_phs.phase[0] == "C":
+                    bus_info[node.name]["mrid"].append(mrid)
                     bus_info[node.name]["pq"][2] = power
                     bus_info[node.name]["phases"].append(
                         Phase[load_phs.phase[0]])
@@ -242,9 +258,10 @@ def query_energy_consumers(network_area) -> dict:
                 if load_phs.p is not None:
                     real = load_phs.p/3.0
                     imag = load_phs.q/3.0
-                    bus_info[node.name]["pv"][0] = [real, imag]
-                    bus_info[node.name]["pv"][1] = [real, imag]
-                    bus_info[node.name]["pv"][2] = [real, imag]
+                    bus_info[node.name]["mrid"].append(mrid)
+                    bus_info[node.name]["pq"][0] = [real, imag]
+                    bus_info[node.name]["pq"][1] = [real, imag]
+                    bus_info[node.name]["pq"][2] = [real, imag]
                     bus_info[node.name]["phases"].append('')
 
-    return bus_info
+    return bus_info, mrid_map
