@@ -21,6 +21,7 @@ log = logging.getLogger(__name__)
 class LineName(Enum):
     IEEE13 = "_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
     IEEE123 = "_C1C3E687-6FFD-C753-582B-632A27E28507"
+    IEEE123PV = "_A3BC35AA-01F6-478E-A7B1-8EA4598A685C"
 
 
 def initialize():
@@ -28,7 +29,7 @@ def initialize():
     os.environ['OUTPUT_DIR'] = f"{ROOT}/outputs"
     os.environ['BUS_CONFIG'] = f"{ROOT}/config/system_message_bus.yml"
     os.environ['GOSS_CONFIG'] = f"{ROOT}/config/pnnl.goss.gridappsd.cfg"
-    os.environ['SIM_CONFIG'] = f"{ROOT}/config/ieee123.json"
+    os.environ['SIM_CONFIG'] = f"{ROOT}/config/ieee123pv.json"
     os.environ['GRIDAPPSD_APPLICATION_ID'] = 'dist-admm'
     os.environ['GRIDAPPSD_USER'] = 'system'
     os.environ['GRIDAPPSD_PASSWORD'] = 'manager'

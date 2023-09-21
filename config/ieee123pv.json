@@ -1,0 +1,34 @@
+{
+    "power_system_config": {
+        "GeographicalRegion_name": "_84E66917-9729-4447-9171-79BDE229B4A9",
+        "SubGeographicalRegion_name": "_27C79884-8A25-406A-8EFB-36C4E3BBAAAF",
+        "Line_name": "_A3BC35AA-01F6-478E-A7B1-8EA4598A685C"
+    },
+    "application_config": {
+        "applications": []
+    },
+    "simulation_config": {
+        "start_time": "1570041110",
+        "duration": "1800",
+        "simulator": "GridLAB-D",
+        "timestep_frequency": "1000",
+        "timestep_increment": "1000",
+        "run_realtime": true,
+        "simulation_name": "ieee123sec",
+        "power_flow_solver_method": "NR",
+        "model_creation_config": {
+            "load_scaling_factor": "1",
+            "schedule_name": "ieeezipload",
+            "z_fraction": "0",
+            "i_fraction": "1",
+            "p_fraction": "0",
+            "randomize_zipload_fractions": false,
+            "use_houses": false
+        }
+    },
+	"test_config": {
+		"events": [],
+		"appId": ""
+	},
+	"service_configs": []
+}
