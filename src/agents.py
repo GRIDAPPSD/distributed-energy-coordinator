@@ -20,7 +20,9 @@ log = logging.getLogger(__name__)
 REQUEST_FIELD = ".".join((t.PROCESS_PREFIX, "request.field"))
 REQUEST_FIELD_CONTEXT = ".".join((REQUEST_FIELD, "context"))
 
-SOURCE_BUSES = {"1": "149", "2": "135", "3": "152", "4": "160", "5": "197"}
+SOURCE_BUSES = {"1": "149", "2": "135", "3": "152", "4": "160r", "5": "197"}
+NEIGHBOR_BUSES = {"18": "135", "135": "18", "13": "152",
+                  "152": "13", "60": "160r", "160r": "60", "97": "197", "197": "97"}
 SOURCE_VOLTAGE = [1.0475, 1.0475, 1.0475]
 ALPHAS = [0, 0, 0, 0, 0]
 LAMBDA_V = np.zeros((5, 3))
@@ -41,8 +43,6 @@ def pol_to_cart(rho: float, phi: float) -> Tuple[float, float]:
 
 
 class SampleCoordinatingAgent(CoordinatingAgent):
-    _latch = False
-
     def __init__(self, system: MessageBusDefinition, simulation_id=None):
         super().__init__(None, system, simulation_id)
         log.debug("Spawning Coordinating Agent")
@@ -88,33 +88,41 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
                  area: Dict = None,
                  simulation_id: str = None) -> None:
         self._location = ""
+        self.source_received = False
         self._measurements = {}
+        self.bus_info = {}
+        self.branch_info = {}
         self.mrid_map = {}
         super().__init__(upstream, downstream, config, area, simulation_id)
         self.alpha = AlphaArea()
         qy.init_cim(self.switch_area)
-        self.branch_info, self.bus_info = qy.query_line_info(self.switch_area)
+        qy.query_line_info(self.switch_area, self.bus_info, self.branch_info)
 
-        branch, bus = qy.query_transformers(self.switch_area)
-        self.branch_info.update(branch)
-        self.bus_info.update(bus)
+        qy.query_transformers(
+            self.switch_area, self.bus_info, self.branch_info)
 
-        pv, mrid_pv = qy.query_power_electronics(self.switch_area)
-        self.bus_info.update(pv)
-        self.mrid_map.update(mrid_pv)
-        ec, mrid_ec = qy.query_energy_consumers(self.switch_area)
-        self.bus_info.update(pv)
-        self.mrid_map.update(mrid_ec)
+        qy.query_power_electronics(
+            self.switch_area, self.bus_info, self.mrid_map)
 
-        self.branch_info, self.bus_info = qy.index_info(
-            self.branch_info, self.bus_info)
+        qy.query_energy_consumers(
+            self.switch_area, self.bus_info, self.mrid_map)
 
-        log.debug(f'branch count: {len(self.branch_info.keys())}')
-        log.debug(f'bus count:  {len(self.bus_info.keys())}')
+        qy.index_info(self.branch_info, self.bus_info)
 
         for key, value in SOURCE_BUSES.items():
             if value in self.bus_info:
                 self._location = key
+
+        if self._location == "":
+            raise Exception("Area has no source bus!")
+
+        self.source_bus = SOURCE_BUSES[self._location]
+        self.source_line = qy.source_line(self.branch_info, self.source_bus)
+
+        log.debug(f'branch count: {len(self.branch_info.keys())}')
+        log.debug(f'bus count:  {len(self.bus_info.keys())}')
+        log.debug(f'source bus:  {self.source_bus}')
+        log.debug(f'source line:  {self.source_line}')
 
         save_info(
             f'{area["message_bus_id"]}_branch_info_{self._location}', OrderedDict(
@@ -124,21 +132,75 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
             f'{area["message_bus_id"]}_businfo_{self._location}',
             OrderedDict(sorted(self.bus_info.items())),
         )
+        save_info(
+            f'{area["message_bus_id"]}_mrids_{self._location}', OrderedDict(
+                sorted(self.mrid_map.items())),
+        )
 
     def on_measurement(self, headers: Dict, message):
+        if self._location == '':
+            return None
+
         for key, value in message.items():
             if key in self.mrid_map:
-                real, imag = pol_to_cart(value['magnitude'], value['angle'])
-                log.info(f"{key}: {real} and {imag} for {self.mrid_map[key]}")
-            if key in self._measurements:
+                bus = self.mrid_map[key]
+
+                if key in self.bus_info[bus]['mrid']:
+                    real, imag = pol_to_cart(
+                        value['magnitude'], value['angle'])
+                    mrid_idx = self.bus_info[bus]['mrid'].index(key)
+                    type = self.bus_info[bus]['types'][mrid_idx]
+                    phase = self.bus_info[bus]['phases'][mrid_idx]
+                    self.bus_info[bus][type][phase-1] = [real, imag]
+
+            if len(self._measurements) == len(self.mrid_map):
                 with open(f"{os.environ.get('OUTPUT_DIR')}/measurments_{self._location}.json", "w", encoding="UTF-8") as file:
                     file.write(json.dumps(self._measurements))
-                self._measurements = {}
+
+                self._measurements.clear()
+
+                [voltages, flows, alpha, pi, qi] = self.alpha.alpha_area(
+                    self.branch_info,
+                    self.bus_info,
+                    SOURCE_BUSES[self._location],
+                    self.bus_info[SOURCE_BUSES[self._location]]["idx"],
+                    SOURCE_VOLTAGE,
+                    0,
+                    False,
+                    int(self._location),
+                    ALPHAS,
+                    LAMBDA_V,
+                    LAMBDA,
+                    LAMBDA_P,
+                    LAMBDA_Q,
+                    MU_V_ALPHA,
+                    CHILD,
+                    LAST_P,
+                    LAST_Q,
+                    LAST_V
+                )
+
+                neighbor_bus = NEIGHBOR_BUSES[self.source_bus]
+
+                message = {
+                    "bus": neighbor_bus,
+                    "kv": list(voltages[self.source_bus].values()),
+                    "pq": list(flows[self.source_line].values()),
+                    "alpha": alpha
+                }
+                self.publish_upstream(message)
+
             else:
                 self._measurements[key] = value
 
     def on_upstream_message(self, headers: Dict, message) -> None:
         log.info(f"Received message from upstream message bus: {message}")
+        if self._location == '':
+            return None
+
+        if message['bus'] in self.bus_info:
+            self.bus_info['kv'] = message['kv'][0]
+            self.bus_info['pq'] = message['pq']
 
     def on_downstream_message(self, headers: Dict, message) -> None:
         log.info(f"Received message from downstream message bus: {message}")
@@ -153,25 +215,47 @@ class SampleSecondaryAreaAgent(SecondaryAreaAgent):
                  simulation_id: str = None) -> None:
         self._location = ""
         self._measurements = {}
+        self.bus_info = {}
+        self.branch_info = {}
         self.mrid_map = {}
         super().__init__(upstream, downstream, config, area, simulation_id)
-        qy.init_cim(self.secondary_area)
-        self.branch_info, self.bus_info = qy.query_line_info(
-            self.secondary_area)
+        self.alpha = AlphaArea()
+        qy.init_cim(self.switch_area)
+        qy.query_line_info(self.switch_area, self.bus_info, self.branch_info)
 
-        branch, bus = qy.query_transformers(self.secondary_area)
-        self.branch_info.update(branch)
-        self.bus_info.update(bus)
+        qy.query_transformers(
+            self.switch_area, self.bus_info, self.branch_info)
 
-        pv, mrid_pv = qy.query_power_electronics(self.secondary_area)
-        self.bus_info.update(pv)
-        self.mrid_map.update(mrid_pv)
-        ec, mrid_ec = qy.query_energy_consumers(self.secondary_area)
-        self.bus_info.update(pv)
-        self.mrid_map.update(mrid_ec)
+        qy.query_power_electronics(
+            self.switch_area, self.bus_info, self.mrid_map)
+
+        qy.query_energy_consumers(
+            self.switch_area, self.bus_info, self.mrid_map)
+
+        qy.index_info(self.branch_info, self.bus_info)
+
+        for key, value in SOURCE_BUSES.items():
+            if value in self.bus_info:
+                self._location = key
+            else:
+                raise Exception("Area has no source bus!")
 
         log.debug(f'branch count: {len(self.branch_info.keys())}')
         log.debug(f'bus count:  {len(self.bus_info.keys())}')
+        log.debug(f'source bus:  {SOURCE_BUSES[str(self._location)]}')
+
+        save_info(
+            f'{area["message_bus_id"]}_branch_info_{self._location}', OrderedDict(
+                sorted(self.branch_info.items())),
+        )
+        save_info(
+            f'{area["message_bus_id"]}_businfo_{self._location}',
+            OrderedDict(sorted(self.bus_info.items())),
+        )
+        save_info(
+            f'{area["message_bus_id"]}_mrids_{self._location}', OrderedDict(
+                sorted(self.mrid_map.items())),
+        )
 
     def on_measurement(self, headers: Dict, message):
         for key, value in message.items():

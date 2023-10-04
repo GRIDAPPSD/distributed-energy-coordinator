@@ -74,7 +74,7 @@ class AlphaArea(object):
             + (nbus_ABC + nbus_s1s2)
             + nbus_ABC * 3
             + nbus_s1s2
-        )  ## (introduce new variables for reactive power injections from inverters)
+        )  # (introduce new variables for reactive power injections from inverters)
         #         alpha_PV                  Q_inv
 
         # Number of equality/inequality constraints (Injection equations (ABC) at each bus)
@@ -120,7 +120,8 @@ class AlphaArea(object):
             obj_term_2 = (
                 lamda_volt[0] * (x[agent_bus_idx] - vsrc[0] ** 2)
                 + lamda_volt[1] * (x[agent_bus_idx + nbus_ABC] - vsrc[1] ** 2)
-                + lamda_volt[2] * (x[agent_bus_idx + nbus_ABC * 2] - vsrc[2] ** 2)
+                + lamda_volt[2] *
+                (x[agent_bus_idx + nbus_ABC * 2] - vsrc[2] ** 2)
             )
 
             for child_bus in child:
@@ -165,7 +166,8 @@ class AlphaArea(object):
 
             for bus in range(5):
                 if bus != area_number - 1:
-                    obj_term_2 += lamda_alpha[bus] * (x[n_alpha] - alpha_neigh[bus])
+                    obj_term_2 += lamda_alpha[bus] * \
+                        (x[n_alpha] - alpha_neigh[bus])
 
             # bus = area_number-1
             # obj_term_2 += lamda_alpha[bus]*(x[n_alpha] - alpha_neigh[bus-2])
@@ -179,7 +181,8 @@ class AlphaArea(object):
             obj_term_3 = 0
             obj_term_3 = (
                 0.5 * mu1_v * 1 * ((x[agent_bus_idx] - vsrc[0] ** 2) ** 2)
-                + 0.5 * mu1_v * 1 * ((x[agent_bus_idx + nbus_ABC] - vsrc[1] ** 2) ** 2)
+                + 0.5 * mu1_v * 1 *
+                ((x[agent_bus_idx + nbus_ABC] - vsrc[1] ** 2) ** 2)
                 + 0.5
                 * mu1_v
                 * 1
@@ -193,7 +196,8 @@ class AlphaArea(object):
                     * mu1_Pi
                     * (
                         (
-                            x[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 0 + val_bus["idx"]]
+                            x[nbus_ABC * 3 + nbus_s1s2 +
+                                nbus_ABC * 0 + val_bus["idx"]]
                             - val_bus["pq"][0][0] * baseS
                         )
                         ** 2
@@ -202,7 +206,8 @@ class AlphaArea(object):
                     * mu1_Pi
                     * (
                         (
-                            x[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 1 + val_bus["idx"]]
+                            x[nbus_ABC * 3 + nbus_s1s2 +
+                                nbus_ABC * 1 + val_bus["idx"]]
                             - val_bus["pq"][1][0] * baseS
                         )
                         ** 2
@@ -211,7 +216,8 @@ class AlphaArea(object):
                     * mu1_Pi
                     * (
                         (
-                            x[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 2 + val_bus["idx"]]
+                            x[nbus_ABC * 3 + nbus_s1s2 +
+                                nbus_ABC * 2 + val_bus["idx"]]
                             - val_bus["pq"][2][0] * baseS
                         )
                         ** 2
@@ -225,7 +231,8 @@ class AlphaArea(object):
                     * mu1_Qi
                     * (
                         (
-                            x[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 3 + val_bus["idx"]]
+                            x[nbus_ABC * 3 + nbus_s1s2 +
+                                nbus_ABC * 3 + val_bus["idx"]]
                             - val_bus["pq"][0][1] * baseS
                         )
                         ** 2
@@ -234,7 +241,8 @@ class AlphaArea(object):
                     * mu1_Qi
                     * (
                         (
-                            x[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 4 + val_bus["idx"]]
+                            x[nbus_ABC * 3 + nbus_s1s2 +
+                                nbus_ABC * 4 + val_bus["idx"]]
                             - val_bus["pq"][1][1] * baseS
                         )
                         ** 2
@@ -243,7 +251,8 @@ class AlphaArea(object):
                     * mu1_Qi
                     * (
                         (
-                            x[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 5 + val_bus["idx"]]
+                            x[nbus_ABC * 3 + nbus_s1s2 +
+                                nbus_ABC * 5 + val_bus["idx"]]
                             - val_bus["pq"][2][1] * baseS
                         )
                         ** 2
@@ -253,7 +262,8 @@ class AlphaArea(object):
             for bus in range(5):
                 if bus != area_number - 1:
                     obj_term_3 += (
-                        0.5 * mu1_alpha * ((x[n_alpha] - alpha_neigh[bus]) ** 2)
+                        0.5 * mu1_alpha *
+                        ((x[n_alpha] - alpha_neigh[bus]) ** 2)
                     )
                 # else:
                 #     obj_term_3 += 1 * mu1_alpha * ((x[n_alpha] - alpha_neigh[bus]) ** 2)
@@ -272,7 +282,8 @@ class AlphaArea(object):
             )
 
             obj_term_4 += (
-                0.5 * mu1_alpha * ((x[n_alpha] - alpha_neigh[area_number - 1]) ** 2)
+                0.5 * mu1_alpha *
+                ((x[n_alpha] - alpha_neigh[area_number - 1]) ** 2)
             )
 
             # for child_bus in child:
@@ -281,7 +292,8 @@ class AlphaArea(object):
             #                 +  0.5 * mu1_Qi * ((x[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 4 + val_bus['idx']] - lastQi[child_bus][1]*baseS)**2) \
             #                 +  0.5 * mu1_Qi * ((x[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 5 + val_bus['idx']] - lastQi[child_bus][2]*baseS)**2)
 
-            obj_term = cp.sum(obj_term_1 + obj_term_2 + obj_term_3 + obj_term_4)
+            obj_term = cp.sum(obj_term_1 + obj_term_2 +
+                              obj_term_3 + obj_term_4)
 
         else:
             P[n_alpha, n_alpha] = 0
@@ -356,7 +368,8 @@ class AlphaArea(object):
                         k_to_1p,
                         counteq,
                         loc,
-                        val_bus["idx"] + nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 5,
+                        val_bus["idx"] + nbus_ABC * 3 +
+                        nbus_s1s2 + nbus_ABC * 5,
                     )
                     counteq += 1
                     A, b = reac_power_balance(
@@ -419,7 +432,8 @@ class AlphaArea(object):
                                 k_to_1p.append(ind_to - nbranch_ABC)
                         ind_to += 1
                         ind_frm += 1
-                    loc = (nbus_ABC * 3 + nbus_s1s2) + (nbus_ABC * 6 + nbus_s1s2 * 2)
+                    loc = (nbus_ABC * 3 + nbus_s1s2) + \
+                        (nbus_ABC * 6 + nbus_s1s2 * 2)
                     # Finding the kfrms
                     k_frm_A = k_frm_3p + k_frm_1pa
                     k_frm_B = k_frm_3p + k_frm_1pb
@@ -434,7 +448,8 @@ class AlphaArea(object):
                         k_to_A,
                         counteq,
                         loc,
-                        val_bus["idx"] + nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 0,
+                        val_bus["idx"] + nbus_ABC * 3 +
+                        nbus_s1s2 + nbus_ABC * 0,
                     )
                     counteq += 1
                     # # # Phase B
@@ -445,7 +460,8 @@ class AlphaArea(object):
                         k_to_B,
                         counteq,
                         loc + nbranch_ABC,
-                        val_bus["idx"] + nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 1,
+                        val_bus["idx"] + nbus_ABC * 3 +
+                        nbus_s1s2 + nbus_ABC * 1,
                     )
                     counteq += 1
                     # # # Phase C
@@ -456,7 +472,8 @@ class AlphaArea(object):
                         k_to_C,
                         counteq,
                         loc + nbranch_ABC * 2,
-                        val_bus["idx"] + nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 2,
+                        val_bus["idx"] + nbus_ABC * 3 +
+                        nbus_s1s2 + nbus_ABC * 2,
                     )
                     counteq += 1
                     k_frm_A = k_frm_3p + k_frm_1qa
@@ -477,7 +494,8 @@ class AlphaArea(object):
                         k_to_A,
                         counteq,
                         loc,
-                        val_bus["idx"] + nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 3,
+                        val_bus["idx"] + nbus_ABC * 3 +
+                        nbus_s1s2 + nbus_ABC * 3,
                     )
                     counteq += 1
                     # Phase B
@@ -488,7 +506,8 @@ class AlphaArea(object):
                         k_to_B,
                         counteq,
                         loc + nbranch_ABC,
-                        val_bus["idx"] + nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 4,
+                        val_bus["idx"] + nbus_ABC * 3 +
+                        nbus_s1s2 + nbus_ABC * 4,
                     )
                     counteq += 1
                     # Phase C
@@ -499,7 +518,8 @@ class AlphaArea(object):
                         k_to_C,
                         counteq,
                         loc + nbranch_ABC * 2,
-                        val_bus["idx"] + nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 5,
+                        val_bus["idx"] + nbus_ABC * 3 +
+                        nbus_s1s2 + nbus_ABC * 5,
                     )
                     counteq += 1
 
@@ -600,7 +620,8 @@ class AlphaArea(object):
                         # Phase A Real Power
                         A[
                             counteq,
-                            nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 0 + val_bus["idx"],
+                            nbus_ABC * 3 + nbus_s1s2 +
+                            nbus_ABC * 0 + val_bus["idx"],
                         ] = 1
                         A[counteq, n_alpha + val_bus["idx"]] = (
                             -val_bus["pv"][0][0] * baseS
@@ -613,7 +634,8 @@ class AlphaArea(object):
                         # Phase B Real Power
                         A[
                             counteq,
-                            nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 1 + val_bus["idx"],
+                            nbus_ABC * 3 + nbus_s1s2 +
+                            nbus_ABC * 1 + val_bus["idx"],
                         ] = 1
                         A[counteq, n_alpha + val_bus["idx"]] = (
                             -val_bus["pv"][1][0] * baseS
@@ -626,7 +648,8 @@ class AlphaArea(object):
                         # Phase C Real Power
                         A[
                             counteq,
-                            nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 2 + val_bus["idx"],
+                            nbus_ABC * 3 + nbus_s1s2 +
+                            nbus_ABC * 2 + val_bus["idx"],
                         ] = 1
                         A[counteq, n_alpha + val_bus["idx"]] = (
                             -val_bus["pv"][2][0] * baseS
@@ -640,7 +663,8 @@ class AlphaArea(object):
                         # Phase A Reactive power
                         A[
                             counteq,
-                            nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 3 + val_bus["idx"],
+                            nbus_ABC * 3 + nbus_s1s2 +
+                            nbus_ABC * 3 + val_bus["idx"],
                         ] = 1
                         b[counteq] = val_bus["pq"][0][1] * baseS * mult
                         counteq += 1
@@ -648,7 +672,8 @@ class AlphaArea(object):
                         # Phase B Reactive power
                         A[
                             counteq,
-                            nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 4 + val_bus["idx"],
+                            nbus_ABC * 3 + nbus_s1s2 +
+                            nbus_ABC * 4 + val_bus["idx"],
                         ] = 1
                         b[counteq] = val_bus["pq"][1][1] * baseS * mult
                         counteq += 1
@@ -656,7 +681,8 @@ class AlphaArea(object):
                         # Phase C Reactive power
                         A[
                             counteq,
-                            nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 5 + val_bus["idx"],
+                            nbus_ABC * 3 + nbus_s1s2 +
+                            nbus_ABC * 5 + val_bus["idx"],
                         ] = 1
                         b[counteq] = val_bus["pq"][2][1] * baseS * mult
                         counteq += 1
@@ -664,11 +690,14 @@ class AlphaArea(object):
                 else:
                     A[
                         counteq,
-                        nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 5 + val_bus["idx"],
+                        nbus_ABC * 3 + nbus_s1s2 +
+                        nbus_ABC * 5 + val_bus["idx"],
                     ] = 1
-                    A[counteq, n_alpha + val_bus["idx"]] = -val_bus["pv"][0] * baseS
+                    A[counteq, n_alpha + val_bus["idx"]] = - \
+                        val_bus["pv"][0] * baseS
                     b[counteq] = (
-                        -val_bus["pv"][0] * baseS + val_bus["pq"][0] * baseS * mult
+                        -val_bus["pv"][0] * baseS +
+                        val_bus["pq"][0] * baseS * mult
                     )
                     counteq += 1
                     # Reactive power
@@ -758,7 +787,8 @@ class AlphaArea(object):
         def voltage_cons_pri(A, b, p, frm, to, counteq, pii, qii, pij, qij, pik, qik):
             A[counteq, frm] = 1
             A[counteq, to] = -1
-            n_flow_ABC = (nbus_ABC * 3 + nbus_s1s2) + (nbus_ABC * 6 + nbus_s1s2 * 2)
+            n_flow_ABC = (nbus_ABC * 3 + nbus_s1s2) + \
+                (nbus_ABC * 6 + nbus_s1s2 * 2)
             # real power drop
             A[counteq, p + n_flow_ABC] = pii / basez
             A[counteq, p + n_flow_ABC + nbranch_ABC] = pij / basez
@@ -904,7 +934,7 @@ class AlphaArea(object):
                         q_pri,
                         p_sec,
                         q_sec,
-                    )  ## Monish
+                    )  # Monish
                     counteq += 1
 
                 # For triplex line, we assume there is no mutual coupling
@@ -917,7 +947,8 @@ class AlphaArea(object):
                     # Writing voltage constraints
                     # Phase S1
                     p_s1, q_s1 = 0, 0
-                    p_s2, q_s2 = -2 * zp[0, 0][0] / zbase, -2 * zp[0, 0][1] / zbase
+                    p_s2, q_s2 = -2 * zp[0, 0][0] / \
+                        zbase, -2 * zp[0, 0][1] / zbase
                     from_bus = val_br["from"] - nbus_ABC + nbus_ABC * 3
                     to_bus = val_br["to"] - nbus_ABC + nbus_ABC * 3
                     # A, b = voltage_cons(A, b, idx - nbus_ABC, from_bus, to_bus, counteq, p_s1, q_s1, p_s2, q_s2)
@@ -932,7 +963,7 @@ class AlphaArea(object):
                         q_s1,
                         p_s2,
                         q_s2,
-                    )  ## Monish
+                    )  # Monish
                     counteq += 1
             idx += 1
 
@@ -986,7 +1017,8 @@ class AlphaArea(object):
             prob = cp.Problem(obj, cons)
         else:
             prob = cp.Problem(cp.Minimize(q.T @ x), [G @ x <= h, A @ x == b])
-        prob.solve(solver=cp.ECOS, verbose=False, max_iters=500, abstol=1e-4, reltol=1e-4, feastol=1e-4)
+        prob.solve(solver=cp.ECOS, verbose=False, max_iters=500,
+                   abstol=1e-4, reltol=1e-4, feastol=1e-4)
         # prob.solve(solver=cp.MOSEK, verbose=False, bfs=True)
         # prob.solve(solver=cp.MOSEK, verbose=False)
         print(prob.status)
@@ -1007,7 +1039,8 @@ class AlphaArea(object):
         flow = []
         mul = 1 / (baseS * 1000)
         line_flow = {}
-        n_flow_ABC = (nbus_ABC * 3 + nbus_s1s2) + (nbus_ABC * 6 + nbus_s1s2 * 2)
+        n_flow_ABC = (nbus_ABC * 3 + nbus_s1s2) + \
+            (nbus_ABC * 6 + nbus_s1s2 * 2)
         for k in range(n_flow_ABC, n_flow_ABC + nbranch_ABC):
             flow.append(
                 [
@@ -1082,15 +1115,16 @@ class AlphaArea(object):
         for k in range(nbus_ABC):
             volt.append(
                 [name[k], '{:.4f}'.format(math.sqrt(abs(x.value[k]))),
-                  '{:.4f}'.format(math.sqrt(abs(x.value[nbus_ABC + k]))),
-                  '{:.4f}'.format(math.sqrt(abs(x.value[nbus_ABC * 2 + k])))])
+                 '{:.4f}'.format(math.sqrt(abs(x.value[nbus_ABC + k]))),
+                 '{:.4f}'.format(math.sqrt(abs(x.value[nbus_ABC * 2 + k])))])
             bus_voltage[name[k]] = {}
             bus_voltage[name[k]]['A'] = math.sqrt(abs(x.value[k]))
             bus_voltage[name[k]]['B'] = math.sqrt(abs(x.value[nbus_ABC + k]))
-            bus_voltage[name[k]]['C'] = math.sqrt(abs(x.value[nbus_ABC * 2 + k]))
+            bus_voltage[name[k]]['C'] = math.sqrt(
+                abs(x.value[nbus_ABC * 2 + k]))
             i += 1
         print(tabulate(volt, headers=['Bus Name', 'V_A', 'V_B', 'V_C', 'V_A (pu)', 'V_B (pu)', 'V_C (pu)'],
-                        tablefmt='psql'))
+                       tablefmt='psql'))
 
         # n_volt_s1s2 = nbus_ABC * 3
         # volt = []
@@ -1101,11 +1135,12 @@ class AlphaArea(object):
         # print(tabulate(volt, headers=['Bus Name', 'V_S'],
         #                 tablefmt='psql'))
 
-        ### Monish Edits
+        # Monish Edits
         for key, val_bus in bus_info.items():
             bus_voltage[key] = {}
             bus_voltage[key]["A"] = math.sqrt(abs(x.value[val_bus["idx"]]))
-            bus_voltage[key]["B"] = math.sqrt(abs(x.value[nbus_ABC + val_bus["idx"]]))
+            bus_voltage[key]["B"] = math.sqrt(
+                abs(x.value[nbus_ABC + val_bus["idx"]]))
             bus_voltage[key]["C"] = math.sqrt(
                 abs(x.value[nbus_ABC * 2 + val_bus["idx"]])
             )
@@ -1114,23 +1149,27 @@ class AlphaArea(object):
         # print('\n Injections at buses:')
         injection = []
         for k in range(nbus_ABC + nbus_s1s2):
-            injection.append([name[k], "{:.4f}".format((x.value[k + n_alpha]))])
+            injection.append(
+                [name[k], "{:.4f}".format((x.value[k + n_alpha]))])
             alpha = x.value[k + n_alpha]
 
         for child_bus in child:
             val_bus = bus_info[child_bus]
             lastPi[child_bus][0] = (
-                x.value[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 0 + val_bus["idx"]]
+                x.value[nbus_ABC * 3 + nbus_s1s2 +
+                        nbus_ABC * 0 + val_bus["idx"]]
                 * mul
                 * 1000
             )
             lastPi[child_bus][1] = (
-                x.value[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 1 + val_bus["idx"]]
+                x.value[nbus_ABC * 3 + nbus_s1s2 +
+                        nbus_ABC * 1 + val_bus["idx"]]
                 * mul
                 * 1000
             )
             lastPi[child_bus][2] = (
-                x.value[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 2 + val_bus["idx"]]
+                x.value[nbus_ABC * 3 + nbus_s1s2 +
+                        nbus_ABC * 2 + val_bus["idx"]]
                 * mul
                 * 1000
             )
@@ -1138,17 +1177,20 @@ class AlphaArea(object):
         for child_bus in child:
             val_bus = bus_info[child_bus]
             lastQi[child_bus][0] = (
-                x.value[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 3 + val_bus["idx"]]
+                x.value[nbus_ABC * 3 + nbus_s1s2 +
+                        nbus_ABC * 3 + val_bus["idx"]]
                 * mul
                 * 1000
             )
             lastQi[child_bus][1] = (
-                x.value[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 4 + val_bus["idx"]]
+                x.value[nbus_ABC * 3 + nbus_s1s2 +
+                        nbus_ABC * 4 + val_bus["idx"]]
                 * mul
                 * 1000
             )
             lastQi[child_bus][2] = (
-                x.value[nbus_ABC * 3 + nbus_s1s2 + nbus_ABC * 5 + val_bus["idx"]]
+                x.value[nbus_ABC * 3 + nbus_s1s2 +
+                        nbus_ABC * 5 + val_bus["idx"]]
                 * mul
                 * 1000
             )
