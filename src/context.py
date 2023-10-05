@@ -78,6 +78,12 @@ class FeederAreaContextManager(FeederAgent):
     def on_measurement(self, headers: Dict, message):
         pass
 
+    def on_upstream_message(self, headers: Dict, message) -> None:
+        pass
+
+    def on_downstream_message(self, headers: Dict, message) -> None:
+        pass
+
 
 class SwitchAreaContextManager(SwitchAreaAgent):
 
@@ -126,6 +132,12 @@ class SwitchAreaContextManager(SwitchAreaAgent):
             message_bus.send(reply_to, self.registered_agents)
 
     def on_measurement(self, headers: Dict, message):
+        pass
+
+    def on_upstream_message(self, headers: Dict, message) -> None:
+        pass
+
+    def on_downstream_message(self, headers: Dict, message) -> None:
         pass
 
 
@@ -177,4 +189,10 @@ class SecondaryAreaContextManager(SecondaryAreaAgent):
             message_bus.send(reply_to, self.registered_agents)
 
     def on_measurement(self, headers: Dict, message):
+        pass
+
+    def on_upstream_message(self, headers: Dict, message) -> None:
+        pass
+
+    def on_downstream_message(self, headers: Dict, message) -> None:
         pass

@@ -138,7 +138,7 @@ def query_transformers(network_area, bus_info: dict, branch_info: dict):
 
         if phase == Phase.A:
             if name not in branch_info:
-                branch_info[name] = init_bus()
+                branch_info[name] = init_branch()
 
             branch_info[name]["type"] = "XFMR"
             branch_info[name]["phases"] = [

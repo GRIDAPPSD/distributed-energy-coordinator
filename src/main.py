@@ -74,9 +74,8 @@ def spawn_context_managers(sim: Sim = None) -> None:
     switch_areas = feeder_manager.agent_area_dict['switch_areas']
     for sw_idx, switch_area in enumerate(switch_areas):
         switch_bus = overwrite_parameters(sim.get_feeder_id(), f"{sw_idx}")
-        if sw_idx != 0:
-            switch_manager = SwitchAreaContextManager(
-                feeder_bus, switch_bus, config, switch_area, sim.get_simulation_id())
+        switch_manager = SwitchAreaContextManager(
+            feeder_bus, switch_bus, config, switch_area, sim.get_simulation_id())
 
         secondary_areas = switch_area['secondary_areas']
         for sec_idx, secondary_area in enumerate(secondary_areas):
@@ -106,9 +105,8 @@ def spawn_agents(sim: Sim) -> None:
     switch_areas = feeder_agent.agent_area_dict['switch_areas']
     for sw_idx, switch_area in enumerate(switch_areas):
         switch_bus = overwrite_parameters(sim.get_feeder_id(), f"{sw_idx}")
-        if sw_idx != 0 and switch_area:
-            switch_agent = SampleSwitchAreaAgent(
-                feeder_bus, switch_bus, config, switch_area, sim.get_simulation_id())
+        switch_agent = SampleSwitchAreaAgent(
+            feeder_bus, switch_bus, config, switch_area, sim.get_simulation_id())
 
         secondary_areas = switch_area['secondary_areas']
         for sec_idx, secondary_area in enumerate(secondary_areas):

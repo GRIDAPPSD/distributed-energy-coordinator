@@ -1,4 +1,5 @@
 import os
+import traceback
 from typing import Dict
 from typing import OrderedDict
 from typing import Tuple
@@ -20,10 +21,10 @@ log = logging.getLogger(__name__)
 REQUEST_FIELD = ".".join((t.PROCESS_PREFIX, "request.field"))
 REQUEST_FIELD_CONTEXT = ".".join((REQUEST_FIELD, "context"))
 
-SOURCE_BUSES = {"1": "149", "2": "135", "3": "152", "4": "160r", "5": "197"}
+SOURCE_BUSES = {"1": "149", "2": "135", "3": "152", "4": "160", "5": "197"}
 NEIGHBOR_BUSES = {"18": "135", "135": "18", "13": "152",
-                  "152": "13", "60": "160r", "160r": "60", "97": "197", "197": "97"}
-SOURCE_VOLTAGE = [1.0475, 1.0475, 1.0475]
+                  "152": "13", "60": "160", "160": "60", "97": "197", "197": "97"}
+SOURCE_VOLTAGE = [1.0175, 1.0175, 1.0175]
 ALPHAS = [0, 0, 0, 0, 0]
 LAMBDA_V = np.zeros((5, 3))
 LAMBDA = [0, 0, 0, 0, 0]
@@ -61,7 +62,6 @@ class SampleFeederAgent(FeederAgent):
 
     def on_measurement(self, headers: Dict, message) -> None:
         if not self._latch:
-            log.debug(f"feeder on measurment message: {message}")
             with open(f"{os.environ.get('OUTPUT_DIR')}/feeder.json", "a", encoding="UTF-8") as file:
                 file.write(json.dumps(message))
             self._latch = True
@@ -87,9 +87,9 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
                  config: Dict,
                  area: Dict = None,
                  simulation_id: str = None) -> None:
+        self.last_update = 0
         self._location = ""
         self.source_received = False
-        self._measurements = {}
         self.bus_info = {}
         self.branch_info = {}
         self.mrid_map = {}
@@ -153,57 +153,68 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
                     phase = self.bus_info[bus]['phases'][mrid_idx]
                     self.bus_info[bus][type][phase-1] = [real, imag]
 
-            if len(self._measurements) == len(self.mrid_map):
-                with open(f"{os.environ.get('OUTPUT_DIR')}/measurments_{self._location}.json", "w", encoding="UTF-8") as file:
-                    file.write(json.dumps(self._measurements))
-
-                self._measurements.clear()
-
-                [voltages, flows, alpha, pi, qi] = self.alpha.alpha_area(
-                    self.branch_info,
-                    self.bus_info,
-                    SOURCE_BUSES[self._location],
-                    self.bus_info[SOURCE_BUSES[self._location]]["idx"],
-                    SOURCE_VOLTAGE,
-                    0,
-                    False,
-                    int(self._location),
-                    ALPHAS,
-                    LAMBDA_V,
-                    LAMBDA,
-                    LAMBDA_P,
-                    LAMBDA_Q,
-                    MU_V_ALPHA,
-                    CHILD,
-                    LAST_P,
-                    LAST_Q,
-                    LAST_V
-                )
-
-                neighbor_bus = NEIGHBOR_BUSES[self.source_bus]
-
-                message = {
-                    "bus": neighbor_bus,
-                    "kv": list(voltages[self.source_bus].values()),
-                    "pq": list(flows[self.source_line].values()),
-                    "alpha": alpha
-                }
-                self.publish_upstream(message)
-
-            else:
-                self._measurements[key] = value
+        time = int(headers['timestamp'])
+        if time % 60 == 0 and time != self.last_update:
+            self.last_update = time
+            self.admm()
 
     def on_upstream_message(self, headers: Dict, message) -> None:
-        log.info(f"Received message from upstream message bus: {message}")
         if self._location == '':
             return None
 
         if message['bus'] in self.bus_info:
-            self.bus_info['kv'] = message['kv'][0]
-            self.bus_info['pq'] = message['pq']
+            log.debug(
+                f"Area {self._location} received message from upstream message bus: {message}")
+            self.bus_info[message['bus']]['pq'] = message['pq']
+            self.admm()
 
     def on_downstream_message(self, headers: Dict, message) -> None:
-        log.info(f"Received message from downstream message bus: {message}")
+        log.debug(f"Received message from downstream message bus: {message}")
+
+    def admm(self):
+        try:
+            [voltages, flows, alpha, pi, qi] = self.alpha.alpha_area(
+                self.branch_info,
+                self.bus_info,
+                self.source_bus,
+                self.bus_info[self.source_bus]["idx"],
+                SOURCE_VOLTAGE,
+                0,
+                False,
+                int(self._location),
+                ALPHAS,
+                LAMBDA_V,
+                LAMBDA,
+                LAMBDA_P,
+                LAMBDA_Q,
+                MU_V_ALPHA,
+                CHILD,
+                LAST_P,
+                LAST_Q,
+                LAST_V
+            )
+
+            if self.source_bus in NEIGHBOR_BUSES:
+                neighbor_bus = NEIGHBOR_BUSES[self.source_bus]
+
+                message = {
+                    "bus": neighbor_bus,
+                    "pq": list(flows[self.source_line].values()),
+                    "alpha": alpha
+                }
+                self.publish_upstream(message)
+        except Exception as e:
+            log.debug(f"Area {self._location}")
+            log.debug(e)
+            log.debug(traceback.format_exc())
+            save_info(
+                f'debug_branch_info_{self._location}', OrderedDict(
+                    sorted(self.branch_info.items())),
+            )
+            save_info(
+                f'debug_businfo_{self._location}',
+                OrderedDict(sorted(self.bus_info.items())),
+            )
 
 
 class SampleSecondaryAreaAgent(SecondaryAreaAgent):
@@ -261,7 +272,6 @@ class SampleSecondaryAreaAgent(SecondaryAreaAgent):
         for key, value in message.items():
             if key in self.mrid_map:
                 real, imag = pol_to_cart(value['magnitude'], value['angle'])
-                log.info(f"{key}: {real} and {imag}")
             if key in self._measurements:
                 with open(f"{os.environ.get('OUTPUT_DIR')}/measurments_{self._location}.json", "w", encoding="UTF-8") as file:
                     file.write(json.dumps(self._measurements))
