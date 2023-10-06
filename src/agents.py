@@ -6,7 +6,9 @@ from typing import Tuple
 import json
 import logging
 import numpy as np
+import math
 import gridappsd.topics as t
+from gridappsd import DifferenceBuilder
 from gridappsd.field_interface.context import LocalContext
 from gridappsd.field_interface.interfaces import MessageBusDefinition
 from gridappsd.field_interface.agents import CoordinatingAgent
@@ -38,8 +40,9 @@ LAST_V = [0, 0, 0]
 
 
 def pol_to_cart(rho: float, phi: float) -> Tuple[float, float]:
-    x = rho * np.cos(phi)
-    y = rho * np.sin(phi)
+    rad = math.radians(phi)
+    x = rho * np.cos(rad)
+    y = rho * np.sin(rad)
     return x, y
 
 
@@ -174,8 +177,9 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
         log.debug(f"Received message from downstream message bus: {message}")
 
     def admm(self):
-        if self.counter > 10:
-            return
+        if self.counter > 5:
+            return None
+
         try:
             [voltages, flows, alpha, pi, qi] = self.alpha.alpha_area(
                 self.branch_info,
@@ -207,6 +211,24 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
                     "alpha": alpha
                 }
                 self.publish_upstream(message)
+
+                if self.counter == 5:
+                    for bus, info in self.bus_info.items():
+                        for i, type in enumerate(info['types']):
+                            if type == 'pv':
+                                device_id = info['control_mrid'][i]
+                                attribute = "PowerElectronicsConnection.p"
+                                phase = info['phases'][i]-1
+                                [old_real, old_imag] = info[type][phase]
+                                new_real = old_real*(1.0 - alpha)
+                                log.debug(
+                                    f"Area {self._location} Control : {device_id}, {old_real} -> {new_real}")
+                                difference_builder = DifferenceBuilder(
+                                    self.simulation_id)
+                                difference_builder.add_difference(
+                                    device_id, attribute, new_real, old_real)
+                                self.send_control_command(difference_builder)
+
             self.counter += 1
         except Exception as e:
             log.debug(f"Area {self._location}")

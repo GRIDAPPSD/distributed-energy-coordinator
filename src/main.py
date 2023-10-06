@@ -14,7 +14,10 @@ from context import FeederAreaContextManager
 from context import SwitchAreaContextManager
 from context import SecondaryAreaContextManager
 
-logging.basicConfig(level=logging.DEBUG)
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+logging.basicConfig(level=logging.DEBUG,
+                    filename=f"{ROOT}/outputs/log.txt", filemode='w')
 log = logging.getLogger(__name__)
 
 
@@ -25,7 +28,6 @@ class LineName(Enum):
 
 
 def initialize():
-    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     os.environ['OUTPUT_DIR'] = f"{ROOT}/outputs"
     os.environ['BUS_CONFIG'] = f"{ROOT}/config/system_message_bus.yml"
     os.environ['GOSS_CONFIG'] = f"{ROOT}/config/pnnl.goss.gridappsd.cfg"

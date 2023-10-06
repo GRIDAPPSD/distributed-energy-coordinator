@@ -44,6 +44,7 @@ def init_bus() -> dict:
     bus["phases"] = []
     bus["types"] = []
     bus["mrid"] = []
+    bus["control_mrid"] = []
     bus["kv"] = 2400  # TODO query actual values
     bus["pq"] = np.zeros((3, 2)).tolist()
     bus["pv"] = np.zeros((3, 2)).tolist()
@@ -180,15 +181,18 @@ def query_power_electronics(network_area, bus_info: dict, mrid_map: dict):
         for pec_phs in pec.PowerElectronicsConnectionPhases:
             mrid = pec_phs.PowerElectronicsConnection.Measurements[0].mRID
             mrid_map[mrid] = node.name
+            device_id = pec.PowerElectronicsUnit[0].mRID
 
             log.debug(
                 f"{node.name}:{mrid} p={pec.p}, q={pec.q} on phase={pec_phs.phase}")
-            log.debug(f"{node.name}: {mrid} pec={pec.mRID}")
+            log.debug(
+                f"{node.name}: {mrid} pec={device_id}")
 
             if pec_phs.phase:
                 power = [float(pec_phs.p), float(pec_phs.q)]
                 if pec_phs.phase[0] == "A":
                     bus_info[node.name]["mrid"].append(mrid)
+                    bus_info[node.name]["control_mrid"].append(device_id)
                     bus_info[node.name]["pv"][0] = power
                     bus_info[node.name]["phases"].append(
                         Phase[pec_phs.phase[0]])
@@ -196,6 +200,7 @@ def query_power_electronics(network_area, bus_info: dict, mrid_map: dict):
 
                 if pec_phs.phase[0] == "B":
                     bus_info[node.name]["mrid"].append(mrid)
+                    bus_info[node.name]["control_mrid"].append(device_id)
                     bus_info[node.name]["pv"][1] = power
                     bus_info[node.name]["phases"].append(
                         Phase[pec_phs.phase[0]])
@@ -203,6 +208,7 @@ def query_power_electronics(network_area, bus_info: dict, mrid_map: dict):
 
                 if pec_phs.phase[0] == "C":
                     bus_info[node.name]["mrid"].append(mrid)
+                    bus_info[node.name]["control_mrid"].append(device_id)
                     bus_info[node.name]["pv"][2] = power
                     bus_info[node.name]["phases"].append(
                         Phase[pec_phs.phase[0]])
@@ -211,6 +217,7 @@ def query_power_electronics(network_area, bus_info: dict, mrid_map: dict):
                 real = float(pec.p)/3.0
                 imag = float(pec.q)/3.0
                 bus_info[node.name]["mrid"].append(mrid)
+                bus_info[node.name]["control_mrid"].append(device_id)
                 bus_info[node.name]["pv"][0] = [real, imag]
                 bus_info[node.name]["pv"][1] = [real, imag]
                 bus_info[node.name]["pv"][2] = [real, imag]

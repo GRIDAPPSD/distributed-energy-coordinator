@@ -75,6 +75,11 @@ class FeederAreaContextManager(FeederAgent):
             reply_to = headers['reply-to']
             message_bus.send(reply_to, self.registered_agents)
 
+        elif message['request_type'] == 'control_command':
+            simulation_id = message['difference_builder']['input']['simulation_id']
+            self.ot_connection.send(t.simulation_input_topic(simulation_id),
+                                    message['difference_builder'])
+
     def on_measurement(self, headers: Dict, message):
         pass
 
@@ -130,6 +135,11 @@ class SwitchAreaContextManager(SwitchAreaAgent):
         elif message['request_type'] == 'get_agents':
             reply_to = headers['reply-to']
             message_bus.send(reply_to, self.registered_agents)
+
+        elif message['request_type'] == 'control_command':
+            simulation_id = message['difference_builder']['input']['simulation_id']
+            self.ot_connection.send(t.simulation_input_topic(simulation_id),
+                                    message['difference_builder'])
 
     def on_measurement(self, headers: Dict, message):
         pass
@@ -187,6 +197,11 @@ class SecondaryAreaContextManager(SecondaryAreaAgent):
         elif message['request_type'] == 'get_agents':
             reply_to = headers['reply-to']
             message_bus.send(reply_to, self.registered_agents)
+
+        elif message['request_type'] == 'control_command':
+            simulation_id = message['difference_builder']['input']['simulation_id']
+            self.ot_connection.send(t.simulation_input_topic(simulation_id),
+                                    message['difference_builder'])
 
     def on_measurement(self, headers: Dict, message):
         pass

@@ -9,6 +9,9 @@ import cvxpy as cp
 import math
 import mosek
 from tabulate import tabulate
+import logging
+
+log = logging.getLogger(__name__)
 
 
 class AlphaArea(object):
@@ -1021,10 +1024,8 @@ class AlphaArea(object):
                    abstol=1e-4, reltol=1e-4, feastol=1e-4)
         # prob.solve(solver=cp.MOSEK, verbose=False, bfs=True)
         # prob.solve(solver=cp.MOSEK, verbose=False)
-        print(prob.status)
         if prob.status == "infeasible":
-            print("Check for limits. Power flow didn't converge")
-            return 0
+            raise Exception("Check for limits. Power flow didn't converge")
 
         # Printing the line flows
         from_bus = []
@@ -1069,7 +1070,7 @@ class AlphaArea(object):
                 x.value[k + nbranch_ABC * 5] * mul * 1000,
             ]
             i += 1
-        print(
+        log.info(
             tabulate(
                 flow,
                 headers=[
@@ -1123,8 +1124,8 @@ class AlphaArea(object):
             bus_voltage[name[k]]['C'] = math.sqrt(
                 abs(x.value[nbus_ABC * 2 + k]))
             i += 1
-        print(tabulate(volt, headers=['Bus Name', 'V_A', 'V_B', 'V_C', 'V_A (pu)', 'V_B (pu)', 'V_C (pu)'],
-                       tablefmt='psql'))
+        log.info(tabulate(volt, headers=['Bus Name', 'V_A', 'V_B', 'V_C', 'V_A (pu)', 'V_B (pu)', 'V_C (pu)'],
+                          tablefmt='psql'))
 
         # n_volt_s1s2 = nbus_ABC * 3
         # volt = []
