@@ -87,6 +87,7 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
                  config: Dict,
                  area: Dict = None,
                  simulation_id: str = None) -> None:
+        self.counter = 0
         self.last_update = 0
         self._location = ""
         self.source_received = False
@@ -155,6 +156,7 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
 
         time = int(headers['timestamp'])
         if time % 60 == 0 and time != self.last_update:
+            self.counter = 0
             self.last_update = time
             self.admm()
 
@@ -172,6 +174,8 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
         log.debug(f"Received message from downstream message bus: {message}")
 
     def admm(self):
+        if self.counter > 10:
+            return
         try:
             [voltages, flows, alpha, pi, qi] = self.alpha.alpha_area(
                 self.branch_info,
@@ -203,6 +207,7 @@ class SampleSwitchAreaAgent(SwitchAreaAgent):
                     "alpha": alpha
                 }
                 self.publish_upstream(message)
+            self.counter += 1
         except Exception as e:
             log.debug(f"Area {self._location}")
             log.debug(e)

@@ -183,6 +183,7 @@ def query_power_electronics(network_area, bus_info: dict, mrid_map: dict):
 
             log.debug(
                 f"{node.name}:{mrid} p={pec.p}, q={pec.q} on phase={pec_phs.phase}")
+            log.debug(f"{node.name}: {mrid} pec={pec.mRID}")
 
             if pec_phs.phase:
                 power = [float(pec_phs.p), float(pec_phs.q)]
